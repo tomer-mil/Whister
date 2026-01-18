@@ -8,9 +8,9 @@ This module provides Redis data structures for:
 
 All data structures are documented in the Database Schema LLD.
 """
+import json
 from datetime import datetime, timedelta
 from typing import Any
-import json
 
 from redis.asyncio import Redis
 

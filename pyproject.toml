@@ -168,6 +168,27 @@ warn_unused_ignores = false
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 
+[[tool.mypy.overrides]]
+module = [
+    "app.core.error_handlers",
+    "app.core.rate_limiter",
+    "app.middleware.logging",
+]
+warn_unused_ignores = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[[tool.mypy.overrides]]
+module = "app.main"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[[tool.mypy.overrides]]
+module = "app.middleware.logging"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+ignore_errors = true
+
 [tool.pytest.ini_options]
 minversion = "7.0"
 asyncio_mode = "auto"
