@@ -1,0 +1,204 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "whist-backend"
+version = "1.0.0"
+description = "Whist Score Keeper Backend API"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    {name = "Whist Team", email = "team@whist.local"}
+]
+license = {text = "MIT"}
+
+dependencies = [
+    "fastapi==0.109.0",
+    "uvicorn[standard]==0.27.0",
+    "python-socketio==5.11.0",
+    "python-engineio==4.9.0",
+    "SQLAlchemy==2.0.25",
+    "asyncpg==0.29.0",
+    "alembic==1.13.1",
+    "pydantic==2.5.2",
+    "pydantic-settings==2.1.0",
+    "redis==5.0.1",
+    "python-jose[cryptography]==3.3.0",
+    "passlib[bcrypt]==1.7.4",
+    "python-multipart==0.0.6",
+    "aiosqlite==0.19.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff==0.2.0",
+    "mypy==1.8.0",
+    "pytest==7.4.4",
+    "pytest-asyncio==0.23.2",
+    "httpx==0.25.2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.hatch.version]
+path = "app/__init__.py"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+exclude = [
+    ".git",
+    "__pycache__",
+    ".venv",
+    "venv",
+    ".tox",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+# Strict linting with all rules
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "C",    # flake8-comprehensions
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+    "RUF",  # ruff specific
+    "SIM",  # flake8-simplify
+    "RET",  # flake8-return
+    "PT",   # flake8-pytest-style (if tests)
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "D100",   # missing docstring in public module
+    "D104",   # missing docstring in public package
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+known-third-party = ["fastapi", "sqlalchemy", "pydantic"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "F403"]  # Allow unused imports in __init__.py
+"tests/*" = ["F811"]  # Allow redefined functions in tests (fixtures)
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["Depends"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_calls = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+follow_imports = "normal"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "fastapi.*",
+    "pydantic.*",
+    "pydantic_settings.*",
+    "sqlalchemy.*",
+    "passlib.*",
+    "jose.*",
+    "redis.*",
+    "engineio.*",
+    "socketio.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "app.websocket.*"
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = [
+    "app.services.bidding_service",
+    "app.services.scoring_service",
+    "app.schemas.game",
+]
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = "tests.test_websocket"
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = "tests.test_bidding"
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = [
+    "tests.test_scoring",
+    "tests.test_gameplay",
+]
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = [
+    "app.schemas.group",
+    "app.services.group_service",
+    "app.services.analytics_service",
+    "app.api.groups",
+]
+warn_unused_ignores = false
+ignore_missing_imports = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[[tool.mypy.overrides]]
+module = [
+    "tests.test_groups",
+    "tests.test_analytics",
+]
+warn_unused_ignores = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--tb=short",
+    "-ra",
+]
+markers = [
+    "integration: integration tests",
+    "unit: unit tests",
+    "slow: slow tests",
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "*/tests/*",
+    "*/site-packages/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
