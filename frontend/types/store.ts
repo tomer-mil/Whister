@@ -11,6 +11,7 @@ import type { TrumpSuit, GameStatus, GameType, RoundPhase } from './game';
 
 export interface User {
   id: string;
+  username: string;
   displayName: string;
   email: string;
   avatarUrl?: string;
@@ -26,7 +27,7 @@ export interface AuthState {
 
 export interface AuthActions {
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, displayName: string) => Promise<void>;
+  register: (email: string, password: string, displayName: string, username: string) => Promise<void>;
   logout: () => void;
   refreshAuth: () => Promise<void>;
   setUser: (user: User) => void;

@@ -57,6 +57,16 @@ export function RegisterForm() {
             </div>
           )}
 
+          {/* Username Input */}
+          <Input
+            label="Username"
+            type="text"
+            placeholder="john_doe"
+            helperText="3-32 characters, letters, numbers, underscores, hyphens"
+            error={errors.username?.message}
+            {...register('username')}
+          />
+
           {/* Display Name Input */}
           <Input
             label="Display Name"

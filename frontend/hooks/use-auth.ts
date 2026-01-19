@@ -5,7 +5,7 @@
 
 import { useCallback } from 'react';
 import { useStore } from '@/stores';
-import { authApi } from '@/lib/api';
+import { authApi } from '@/lib/api/auth';
 import type { LoginFormData, RegisterFormData } from '@/lib/validation/schemas';
 
 export interface UseAuthReturn {
@@ -43,18 +43,6 @@ export function useAuth(): UseAuthReturn {
   const login = useCallback(
     async (data: LoginFormData) => {
       try {
-        const response = await authApi.login({
-          email: data.email,
-          password: data.password,
-        });
-
-        // Store tokens
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('accessToken', response.access_token);
-          localStorage.setItem('refreshToken', response.refresh_token);
-        }
-
-        // Update store
         await storeLogin(data.email, data.password);
       } catch (error) {
         throw error;
@@ -64,25 +52,12 @@ export function useAuth(): UseAuthReturn {
   );
 
   /**
-   * Register with email, password, and display name
+   * Register with username, email, password, and display name
    */
   const register = useCallback(
     async (data: RegisterFormData) => {
       try {
-        const response = await authApi.register({
-          email: data.email,
-          password: data.password,
-          display_name: data.displayName,
-        });
-
-        // Store tokens
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('accessToken', response.access_token);
-          localStorage.setItem('refreshToken', response.refresh_token);
-        }
-
-        // Update store
-        await storeRegister(data.email, data.password, data.displayName);
+        await storeRegister(data.email, data.password, data.displayName, data.username);
       } catch (error) {
         throw error;
       }
@@ -95,8 +70,8 @@ export function useAuth(): UseAuthReturn {
    */
   const logout = useCallback(() => {
     // Call API to logout (optional, for cleanup on backend)
-    authApi.logout().catch((error) => {
-      console.error('Error logging out:', error);
+    authApi.logout().catch(() => {
+      // Ignore logout API errors, still clear store
     });
 
     // Clear store

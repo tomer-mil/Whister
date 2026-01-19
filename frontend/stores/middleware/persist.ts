@@ -39,12 +39,33 @@ export const createLocalStorage = () => ({
  * Focus on auth tokens and user info
  */
 export const persistConfig = {
-  name: 'whist-store',
+  name: 'whist-store-v2',
+  version: 1,
   storage: createLocalStorage(),
   partialize: (state: Store) => ({
+    // Persist tokens for automatic refresh, but NOT isAuthenticated
+    // isAuthenticated will be recalculated based on token validity
     user: state.user,
     accessToken: state.accessToken,
     refreshToken: state.refreshToken,
-    isAuthenticated: state.isAuthenticated,
+    // Do NOT persist isAuthenticated - let it be recalculated
   }),
+  onRehydrateStorage: () => (state) => {
+    // After rehydrating from storage, always start with isAuthenticated=false
+    // It will be set to true only when user successfully logs in
+    state.isAuthenticated = false;
+  },
+  migrate: (persistedState: any, version: number) => {
+    // Migration logic - clear old data on version mismatch
+    if (version === 0) {
+      return {
+        user: null,
+        accessToken: null,
+        refreshToken: null,
+        isAuthenticated: false,
+        isLoading: false,
+      };
+    }
+    return persistedState;
+  },
 };

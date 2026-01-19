@@ -34,8 +34,9 @@ export function LoginForm() {
 
     try {
       await login(data);
-      // Redirect to home on success
+      // Navigate to home and refresh to ensure home page can see the authenticated state
       router.push('/');
+      router.refresh();
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Login failed. Please try again.';

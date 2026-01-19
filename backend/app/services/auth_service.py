@@ -148,7 +148,13 @@ class AuthService:
         )
 
         return LoginResponse(
-            user=UserBrief.model_validate(user),
+            user=UserBrief(
+                id=str(user.id),
+                username=user.username,
+                email=user.email,
+                display_name=user.display_name,
+                avatar_url=user.avatar_url,
+            ),
             tokens=TokenResponse(
                 access_token=access_token,
                 refresh_token=refresh_token,

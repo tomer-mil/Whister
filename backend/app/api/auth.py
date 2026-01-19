@@ -166,4 +166,10 @@ async def get_me(current_user: CurrentUser) -> UserBrief:
     **Errors:**
     - 401: Missing or invalid access token
     """
-    return UserBrief.model_validate(current_user)  # type: ignore
+    return UserBrief(
+        id=str(current_user.id),
+        username=current_user.username,
+        email=current_user.email,
+        display_name=current_user.display_name,
+        avatar_url=current_user.avatar_url,
+    )

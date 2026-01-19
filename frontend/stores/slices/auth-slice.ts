@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { authApi } from '@/lib/api/auth';
 import type { AuthState, AuthActions } from '@/types/store';
 
 export interface AuthSlice extends AuthState, AuthActions {}
@@ -11,70 +12,83 @@ const initialAuthState: AuthState = {
   isLoading: false,
 };
 
+
 export const createAuthSlice: any = (set: any, get: any) => ({
   ...initialAuthState,
 
-  login: async (email) => {
+  login: async (email: string, password: string) => {
     set({ isLoading: true });
     try {
-      // TODO: Implement API call to /auth/login
-      // const response = await apiClient.post('/auth/login', { email, password });
-      // const { user, access_token, refresh_token } = response.data;
+      const response = await authApi.login({ email, password });
 
-      // For now, mock implementation
-      const mockUser = {
-        id: 'user-123',
-        displayName: 'User Name',
-        email,
-        avatarUrl: undefined,
+      const user = {
+        id: response.user.id,
+        username: response.user.username,
+        email: response.user.email,
+        displayName: (response.user as any).display_name || '',
+        avatarUrl: (response.user as any).avatar_url,
       };
 
-      set({
-        user: mockUser,
-        accessToken: 'access-token-mock',
-        refreshToken: 'refresh-token-mock',
+      const newState = {
+        user,
+        accessToken: response.tokens.access_token,
+        refreshToken: response.tokens.refresh_token,
         isAuthenticated: true,
         isLoading: false,
-      });
+      };
 
-      // Store tokens
-      localStorage.setItem('accessToken', 'access-token-mock');
-      localStorage.setItem('refreshToken', 'refresh-token-mock');
+      set(newState);
+
+      // Store tokens in localStorage and cookies
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('accessToken', response.tokens.access_token);
+        localStorage.setItem('refreshToken', response.tokens.refresh_token);
+
+        // Also set cookies for middleware to read (middleware checks for accessToken cookie)
+        document.cookie = `accessToken=${response.tokens.access_token}; path=/; max-age=${response.tokens.expires_in}`;
+        document.cookie = `refreshToken=${response.tokens.refresh_token}; path=/`;
+      }
     } catch (error) {
       set({ isLoading: false });
       throw error;
     }
   },
 
-  register: async (email, displayName) => {
+  register: async (email: string, password: string, displayName: string, username: string) => {
     set({ isLoading: true });
     try {
-      // TODO: Implement API call to /auth/register
-      // const response = await apiClient.post('/auth/register', {
-      //   email,
-      //   password,
-      //   display_name: displayName,
-      // });
-      // const { user, access_token, refresh_token } = response.data;
-
-      // For now, mock implementation
-      const mockUser = {
-        id: 'user-' + Math.random().toString(36).substr(2, 9),
-        displayName,
+      const response = await authApi.register({
+        username,
         email,
-        avatarUrl: undefined,
+        password,
+        display_name: displayName,
+      });
+
+      const user = {
+        id: response.user.id,
+        username: response.user.username,
+        email: response.user.email,
+        displayName: (response.user as any).display_name || '',
+        avatarUrl: (response.user as any).avatar_url,
       };
 
       set({
-        user: mockUser,
-        accessToken: 'access-token-mock',
-        refreshToken: 'refresh-token-mock',
+        user,
+        accessToken: response.tokens.access_token,
+        refreshToken: response.tokens.refresh_token,
         isAuthenticated: true,
         isLoading: false,
       });
 
-      localStorage.setItem('accessToken', 'access-token-mock');
-      localStorage.setItem('refreshToken', 'refresh-token-mock');
+      // Store tokens in localStorage and cookies
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('accessToken', response.tokens.access_token);
+        localStorage.setItem('refreshToken', response.tokens.refresh_token);
+
+        // Also set cookies for middleware to read
+        document.cookie = `accessToken=${response.tokens.access_token}; path=/; max-age=${response.tokens.expires_in}`;
+        document.cookie = `refreshToken=${response.tokens.refresh_token}; path=/`;
+      }
     } catch (error) {
       set({ isLoading: false });
       throw error;
@@ -84,6 +98,13 @@ export const createAuthSlice: any = (set: any, get: any) => ({
   logout: () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+
+    // Clear cookies as well
+    if (typeof window !== 'undefined') {
+      document.cookie = 'accessToken=; path=/; max-age=0';
+      document.cookie = 'refreshToken=; path=/; max-age=0';
+    }
+
     set(initialAuthState);
   },
 
