@@ -4,12 +4,19 @@ from uuid import uuid4
 import pytest
 
 from app.services.analytics_service import AnalyticsService
+from app.services.group_service import GroupService
 
 
 @pytest.fixture
 async def analytics_service(db_session, redis) -> AnalyticsService:  # type: ignore[no-untyped-def]
     """Create an AnalyticsService instance."""
     return AnalyticsService(db_session, redis)
+
+
+@pytest.fixture
+async def group_service(db_session, redis) -> GroupService:  # type: ignore[no-untyped-def]
+    """Create a GroupService instance."""
+    return GroupService(db_session, redis)
 
 
 class TestPlayerStats:

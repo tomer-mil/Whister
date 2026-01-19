@@ -33,7 +33,7 @@ async def app_exception_handler(
         extra={
             "request_id": request_id,
             "error_code": exc.error_code.value,
-            "message": exc.message,
+            "error_message": exc.message,
             "status_code": exc.status_code,
             "path": request.url.path,
             "method": request.method,

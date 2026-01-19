@@ -1,4 +1,5 @@
 """Analytics service for calculating player and group statistics."""
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -60,48 +61,41 @@ class AnalyticsService:
                 user_id=user_id,
                 total_games=0,
                 total_rounds=0,
-                total_made_contracts=0,
-                total_failed_contracts=0,
-                zero_bid_made=0,
-                zero_bid_failed=0,
-                trump_win_count=0,
+                contracts_made=0,
+                contracts_attempted=0,
+                zeros_made=0,
+                zeros_attempted=0,
+                trump_wins=0,
                 current_streak=0,
                 best_streak=0,
                 highest_round_score=0,
-                lowest_round_score=0,
+                total_wins=0,
+                total_points=0,
             )
 
         # Calculate derived statistics
-        total_rounds = stats.total_rounds if stats.total_rounds > 0 else 1  # type: ignore[attr-defined]
-        total_contracts = stats.total_made_contracts + stats.total_failed_contracts  # type: ignore[attr-defined]
+        total_rounds = stats.total_rounds if stats.total_rounds > 0 else 1
+        total_contracts = stats.contracts_attempted
         total_contracts_denom = total_contracts if total_contracts > 0 else 1
-        total_zero_bids = stats.zero_bid_made + stats.zero_bid_failed  # type: ignore[attr-defined]
+        total_zero_bids = stats.zeros_attempted
         total_zero_bids_denom = total_zero_bids if total_zero_bids > 0 else 1
 
         win_rate = (
-            (stats.total_made_contracts / total_contracts_denom) * 100  # type: ignore[attr-defined]
-            if stats.total_made_contracts > 0  # type: ignore[attr-defined]
+            (stats.contracts_made / total_contracts_denom) * 100
+            if stats.contracts_made > 0
             else 0.0
         )
         zero_bid_rate = (
-            (stats.zero_bid_made / total_zero_bids_denom) * 100  # type: ignore[attr-defined]
-            if stats.zero_bid_made > 0  # type: ignore[attr-defined]
+            (stats.zeros_made / total_zero_bids_denom) * 100
+            if stats.zeros_made > 0
             else 0.0
         )
 
-        # Fetch total score from round results
-        # Note: RoundResult table needs to be defined in models
-        try:
-            from app.models import RoundResult  # type: ignore[attr-defined]
-            score_result = await self.db.execute(
-                select(func.sum(RoundResult.score)).where(RoundResult.user_id == user_id)
-            )
-            total_score = score_result.scalar() or 0
-        except (ImportError, AttributeError):
-            total_score = 0
-        average_score = total_score / stats.total_games if stats.total_games > 0 else 0.0
+        # Use total_points from stats record
+        total_points = stats.total_points
+        average_score = total_points / stats.total_games if stats.total_games > 0 else 0.0
         average_round_score = (
-            total_score / total_rounds if total_rounds > 0 else 0.0
+            total_points / total_rounds if total_rounds > 0 else 0.0
         )
 
         # Fetch wins count (games where player had highest total score)
@@ -113,23 +107,23 @@ class AnalyticsService:
             display_name=user.display_name,
             total_games=stats.total_games,
             total_rounds=stats.total_rounds,
-            wins=wins,
-            losses=stats.total_games - wins,
-            win_rate=0.0,  # Simplified - would need game outcomes tracking
+            wins=stats.total_wins,
+            losses=stats.total_games - stats.total_wins,
+            win_rate=stats.win_rate,
             average_score=average_score,
             average_round_score=average_round_score,
-            total_made_contracts=stats.total_made_contracts,  # type: ignore[attr-defined]
-            total_failed_contracts=stats.total_failed_contracts,  # type: ignore[attr-defined]
+            total_made_contracts=stats.contracts_made,
+            total_failed_contracts=stats.contracts_attempted - stats.contracts_made,
             contract_success_rate=win_rate,
-            zero_bid_made=stats.zero_bid_made,  # type: ignore[attr-defined]
-            zero_bid_failed=stats.zero_bid_failed,  # type: ignore[attr-defined]
+            zero_bid_made=stats.zeros_made,
+            zero_bid_failed=stats.zeros_attempted - stats.zeros_made,
             zero_bid_success_rate=zero_bid_rate,
-            trump_win_count=stats.trump_win_count,  # type: ignore[attr-defined]
-            current_streak=stats.current_streak,  # type: ignore[attr-defined]
-            best_streak=stats.best_streak,  # type: ignore[attr-defined]
-            highest_round_score=stats.highest_round_score,  # type: ignore[attr-defined]
-            lowest_round_score=stats.lowest_round_score,  # type: ignore[attr-defined]
-            updated_at=stats.updated_at,
+            trump_win_count=stats.trump_wins,
+            current_streak=stats.current_streak,
+            best_streak=stats.best_streak,
+            highest_round_score=stats.highest_round_score,
+            lowest_round_score=stats.lowest_score if stats.lowest_score is not None else 0,
+            updated_at=stats.updated_at or datetime.now(UTC),
         )
 
     async def get_group_leaderboard(
@@ -345,35 +339,34 @@ class AnalyticsService:
             await self.db.flush()
 
         # Update counts
-        stats.total_rounds += 1  # type: ignore[attr-defined]
+        stats.total_rounds += 1
         if contract_bid == 0:
+            stats.zeros_attempted += 1
             if tricks_won == 0:
-                stats.zero_bid_made += 1  # type: ignore[attr-defined]
-            else:
-                stats.zero_bid_failed += 1  # type: ignore[attr-defined]
+                stats.zeros_made += 1
         else:
+            stats.contracts_attempted += 1
             if tricks_won == contract_bid:
-                stats.total_made_contracts += 1  # type: ignore[attr-defined]
-            else:
-                stats.total_failed_contracts += 1  # type: ignore[attr-defined]
+                stats.contracts_made += 1
 
         # Update score tracking
-        if round_score > stats.highest_round_score:  # type: ignore[attr-defined]
-            stats.highest_round_score = round_score  # type: ignore[attr-defined]
-        if round_score < stats.lowest_round_score or stats.lowest_round_score == 0:  # type: ignore[attr-defined]
-            stats.lowest_round_score = round_score  # type: ignore[attr-defined]
+        stats.total_points += round_score
+        if round_score > stats.highest_round_score:
+            stats.highest_round_score = round_score
+        if stats.lowest_score == 0 or round_score < stats.lowest_score:
+            stats.lowest_score = round_score
 
         # Update trump wins
         if is_trump_winner:
-            stats.trump_win_count += 1  # type: ignore[attr-defined]
+            stats.trump_wins += 1
 
         # Update streak (simplified - only tracks made contracts)
         if tricks_won == contract_bid and contract_bid > 0:
-            stats.current_streak += 1  # type: ignore[attr-defined]
-            if stats.current_streak > stats.best_streak:  # type: ignore[attr-defined]
-                stats.best_streak = stats.current_streak  # type: ignore[attr-defined]
+            stats.current_streak += 1
+            if stats.current_streak > stats.best_streak:
+                stats.best_streak = stats.current_streak
         else:
-            stats.current_streak = 0  # type: ignore[attr-defined]
+            stats.current_streak = 0
 
         await self.db.commit()
 
