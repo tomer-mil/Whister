@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Font family variables */
+:root {
+  --font-inter: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
 /* CSS Variables for theming */
 :root {
   --background: 0 0% 100%;
