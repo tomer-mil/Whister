@@ -25,7 +25,8 @@
       "Bash(.venv/bin/pip install:*)",
       "Bash(.venv/bin/python:*)",
       "Bash(.venv/bin/pip:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(/Users/tomer.mildworth/personal/Whister/backend/.venv/bin/python -m pytest:*)"
     ],
     "additionalDirectories": [
       "/Users/tomer.mildworth/personal/Whister/frontend-app/{app,components/{ui,layout,room,bidding,game,scores,shared},hooks,lib/{socket,api,validation,utils},stores/slices"

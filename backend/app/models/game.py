@@ -11,6 +11,7 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -204,7 +205,7 @@ class GamePlayer(Base, UUIDPrimaryKeyMixin):
     # Timestamps
     joined_at: Mapped[datetime] = mapped_column(
         nullable=False,
-        server_default="NOW()",
+        server_default=func.now(),
         comment="When the player joined the room",
     )
 
