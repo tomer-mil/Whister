@@ -8,11 +8,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
-COPY pyproject.toml .
+# Copy requirements and README
+COPY pyproject.toml README.md ./
 
 # Install dependencies
-RUN pip install --no-cache-dir --user -e .
+RUN pip install --no-cache-dir --user hatchling && \
+    pip install --no-cache-dir --user -e .
 
 # Runtime stage
 FROM python:3.11-slim
