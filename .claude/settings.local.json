@@ -6,7 +6,20 @@
       "Bash(python3 -m mypy:*)",
       "Bash(python3 -m alembic:*)",
       "Bash(alembic init:*)",
-      "Bash(python -m ruff check:*)"
+      "Bash(python -m ruff check:*)",
+      "Bash(node:*)",
+      "Read(//Users/tomer.mildworth/personal/Whister/frontend-app/**)",
+      "Bash(ls:*)",
+      "Bash(xargs:*)",
+      "Bash(npm install:*)",
+      "Bash(npm view:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(npm ls:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(git add:*)"
+    ],
+    "additionalDirectories": [
+      "/Users/tomer.mildworth/personal/Whister/frontend-app/{app,components/{ui,layout,room,bidding,game,scores,shared},hooks,lib/{socket,api,validation,utils},stores/slices"
     ]
   }
 }
