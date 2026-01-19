@@ -35,6 +35,8 @@ export function LoginForm() {
     try {
       await login(data);
       // Navigate to home and refresh to ensure home page can see the authenticated state
+      // Small delay to ensure store is updated before navigation
+      await new Promise(resolve => setTimeout(resolve, 100));
       router.push('/');
       router.refresh();
     } catch (error) {

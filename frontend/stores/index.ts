@@ -26,12 +26,16 @@ const stateCreator = ((set: any, get: any) => ({
   ...createUISlice(set, get),
 })) as any;
 
+console.log('[Store] Creating Zustand store...');
+
 export const useStore = create<Store>()(
   devtools(
     persist(subscribeWithSelector(stateCreator), persistConfig as any),
     devtoolsConfig as any
   )
 );
+
+console.log('[Store] Zustand store created');
 
 export { Store };
 export * from './slices/index';

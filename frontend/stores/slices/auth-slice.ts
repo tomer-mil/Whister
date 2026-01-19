@@ -10,6 +10,7 @@ const initialAuthState: AuthState = {
   refreshToken: null,
   isAuthenticated: false,
   isLoading: false,
+  isHydrated: false,
 };
 
 
@@ -35,18 +36,22 @@ export const createAuthSlice: any = (set: any, get: any) => ({
         refreshToken: response.tokens.refresh_token,
         isAuthenticated: true,
         isLoading: false,
+        isHydrated: true,
       };
 
+      console.log('[Auth] login - setting state:', { isAuthenticated: true, userEmail: user.email, hasAccessToken: !!response.tokens.access_token });
       set(newState);
 
       // Store tokens in localStorage and cookies
       if (typeof window !== 'undefined') {
         localStorage.setItem('accessToken', response.tokens.access_token);
         localStorage.setItem('refreshToken', response.tokens.refresh_token);
+        console.log('[Auth] login - stored tokens in localStorage');
 
         // Also set cookies for middleware to read (middleware checks for accessToken cookie)
         document.cookie = `accessToken=${response.tokens.access_token}; path=/; max-age=${response.tokens.expires_in}`;
         document.cookie = `refreshToken=${response.tokens.refresh_token}; path=/`;
+        console.log('[Auth] login - set cookies');
       }
     } catch (error) {
       set({ isLoading: false });
@@ -78,6 +83,7 @@ export const createAuthSlice: any = (set: any, get: any) => ({
         refreshToken: response.tokens.refresh_token,
         isAuthenticated: true,
         isLoading: false,
+        isHydrated: true,
       });
 
       // Store tokens in localStorage and cookies

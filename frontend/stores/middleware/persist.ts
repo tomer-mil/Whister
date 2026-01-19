@@ -38,34 +38,48 @@ export const createLocalStorage = () => ({
  * Define which state properties to persist
  * Focus on auth tokens and user info
  */
+// Track rehydration completion externally
+let persistRehydrated = false;
+
 export const persistConfig = {
   name: 'whist-store-v2',
   version: 1,
   storage: createLocalStorage(),
   partialize: (state: Store) => ({
-    // Persist tokens for automatic refresh, but NOT isAuthenticated
-    // isAuthenticated will be recalculated based on token validity
+    // Persist tokens and user for automatic refresh
+    // Do NOT persist isAuthenticated or isHydrated - they're runtime values
     user: state.user,
     accessToken: state.accessToken,
     refreshToken: state.refreshToken,
-    // Do NOT persist isAuthenticated - let it be recalculated
   }),
   onRehydrateStorage: () => (state) => {
-    // After rehydrating from storage, always start with isAuthenticated=false
-    // It will be set to true only when user successfully logs in
-    state.isAuthenticated = false;
+    // After rehydrating from storage, set isAuthenticated based on whether we have a token
+    console.log('[Persist] onRehydrateStorage called - accessToken present:', !!state?.accessToken, 'user:', state?.user?.email);
+    if (state) {
+      state.isAuthenticated = !!state.accessToken;
+      state.isHydrated = true;
+      persistRehydrated = true;
+      console.log('[Persist] onRehydrateStorage - set isAuthenticated:', state.isAuthenticated, 'isHydrated: true');
+    }
   },
   migrate: (persistedState: any, version: number) => {
     // Migration logic - clear old data on version mismatch
     if (version === 0) {
+      console.log('[Persist] Migrating from version 0 - clearing old state');
       return {
         user: null,
         accessToken: null,
         refreshToken: null,
         isAuthenticated: false,
         isLoading: false,
+        isHydrated: false,
       };
     }
-    return persistedState;
+    // Return persisted state as-is, ensuring required fields exist
+    const result = persistedState || {};
+    console.log('[Persist] Migrate complete - version:', version, 'hasToken:', !!result.accessToken);
+    return result;
   },
 };
+
+export const isPersistRehydrated = () => persistRehydrated;

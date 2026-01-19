@@ -23,6 +23,7 @@ export interface AuthState {
   refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isHydrated: boolean;
 }
 
 export interface AuthActions {

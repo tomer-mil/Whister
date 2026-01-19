@@ -7,24 +7,31 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/stores';
+import { useHydration } from '@/hooks/use-hydration';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
 
 export default function HomePage() {
   const router = useRouter();
+  const isHydrated = useHydration();
   const isAuthenticated = useStore((state) => state.isAuthenticated);
   const user = useStore((state) => state.user);
+  const accessToken = useStore((state) => state.accessToken);
+
+  console.log('[HomePage] Render - isAuthenticated:', isAuthenticated, 'isHydrated:', isHydrated, 'user:', user?.email, 'hasToken:', !!accessToken);
 
   // Redirect to login if not authenticated
   useEffect(() => {
-    if (typeof window !== 'undefined' && !isAuthenticated) {
+    console.log('[HomePage] useEffect - isAuthenticated:', isAuthenticated, 'isHydrated:', isHydrated);
+    if (typeof window !== 'undefined' && isHydrated && !isAuthenticated) {
+      console.log('[HomePage] Redirecting to login');
       router.push('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isHydrated, router]);
 
-  // Show loading state while checking authentication
-  if (!isAuthenticated) {
+  // Show loading state while checking authentication or waiting for hydration
+  if (!isHydrated || !isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
