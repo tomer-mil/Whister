@@ -25,7 +25,6 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-docs/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -139,8 +138,24 @@ celerybeat.pid
 .env
 .env.*
 .envrc
-.venv
+
+# Backend
+backend/.venv/
+backend/.env
+backend/.env.*
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/__pycache__/
+
+# Frontend
+frontend/.next/
+frontend/node_modules/
+frontend/.env.local
+frontend/.env.local.backup
+
+# Legacy (remove after migration)
 whister/
+.venv
 env/
 venv/
 ENV/
