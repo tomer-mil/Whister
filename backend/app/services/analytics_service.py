@@ -14,7 +14,7 @@ from app.schemas.group import PlayerStats as PlayerStatsSchema
 class AnalyticsService:
     """Service for analytics and statistics calculations."""
 
-    def __init__(self, db: AsyncSession, redis: Redis[Any]) -> None:
+    def __init__(self, db: AsyncSession, redis: Redis) -> None:  # type: ignore[type-arg]
         """Initialize analytics service.
 
         Args:

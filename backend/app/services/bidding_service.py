@@ -30,7 +30,7 @@ MINIMUM_BID_PROGRESSION = [5, 6, 7, 8]  # Index = frisch_count
 class BiddingService:
     """Service for handling trump and contract bidding logic."""
 
-    def __init__(self, redis: Redis[Any]) -> None:  # type: ignore[type-arg]
+    def __init__(self, redis: Redis) -> None:  # type: ignore[type-arg]
         """Initialize the bidding service.
 
         Args:

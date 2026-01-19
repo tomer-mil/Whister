@@ -14,7 +14,7 @@ from app.schemas.group import GroupMember as GroupMemberSchema
 class GroupService:
     """Service for group management operations."""
 
-    def __init__(self, db: AsyncSession, redis: Redis[Any]) -> None:
+    def __init__(self, db: AsyncSession, redis: Redis) -> None:  # type: ignore[type-arg]
         """Initialize group service.
 
         Args:

@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class RateLimiter:
     """Redis-based rate limiter for API endpoints."""
 
-    def __init__(self, redis: Redis[Any]) -> None:
+    def __init__(self, redis: Redis) -> None:  # type: ignore[type-arg]
         """Initialize rate limiter.
 
         Args:
@@ -137,7 +137,7 @@ class RateLimiter:
 class RateLimitMiddleware:
     """ASGI middleware for rate limiting."""
 
-    def __init__(self, app: Any, redis: Redis[Any]) -> None:
+    def __init__(self, app: Any, redis: Redis) -> None:  # type: ignore[type-arg]
         """Initialize middleware.
 
         Args:
