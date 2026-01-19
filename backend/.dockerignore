@@ -10,8 +10,6 @@ build
 .pytest_cache
 .git
 .gitignore
-README.md
-*.md
 .env
 .env.local
 .env.*.local

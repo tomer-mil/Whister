@@ -37,9 +37,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await redis_manager.initialize(str(settings.redis_url))
 
     # Initialize WebSocket
-    sio = create_socketio_server(redis_manager.redis)  # type: ignore
+    sio = create_socketio_server(redis_manager.client)  # type: ignore
     room_manager = RoomManager(
-        redis_manager.redis,  # type: ignore
+        redis_manager.client,  # type: ignore
         db_manager._session_factory,
     )
     register_socketio_handlers(sio, room_manager)
