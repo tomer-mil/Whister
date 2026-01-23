@@ -52,7 +52,7 @@ class Round(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     # Current phase
     phase: Mapped[RoundPhase] = mapped_column(
-        Enum(RoundPhase, name="round_phase", native_enum=True),
+        Enum(RoundPhase, name="round_phase", native_enum=True, values_callable=lambda x: [e.value for e in x]),
         default=RoundPhase.TRUMP_BIDDING,
         nullable=False,
         comment="Current phase of the round",
@@ -60,7 +60,7 @@ class Round(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     # Trump bidding results
     trump_suit: Mapped[TrumpSuit | None] = mapped_column(
-        Enum(TrumpSuit, name="trump_suit", native_enum=True),
+        Enum(TrumpSuit, name="trump_suit", native_enum=True, values_callable=lambda x: [e.value for e in x]),
         nullable=True,
         comment="The winning trump suit (null during bidding)",
     )
@@ -91,7 +91,7 @@ class Round(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     # Contract bidding state
     game_type: Mapped[GameType | None] = mapped_column(
-        Enum(GameType, name="game_type", native_enum=True),
+        Enum(GameType, name="game_type", native_enum=True, values_callable=lambda x: [e.value for e in x]),
         nullable=True,
         comment="Over/under based on contract sum (set after all bids)",
     )
@@ -322,6 +322,7 @@ class TrumpBid(Base, UUIDPrimaryKeyMixin):
             name="trump_suit",
             native_enum=True,
             create_constraint=False,
+            values_callable=lambda x: [e.value for e in x],
         ),
         nullable=True,
         comment="Bid suit (null for pass)",

@@ -52,15 +52,35 @@ export const persistConfig = {
     accessToken: state.accessToken,
     refreshToken: state.refreshToken,
   }),
-  onRehydrateStorage: () => (state) => {
-    // After rehydrating from storage, set isAuthenticated based on whether we have a token
-    console.log('[Persist] onRehydrateStorage called - accessToken present:', !!state?.accessToken, 'user:', state?.user?.email);
-    if (state) {
-      state.isAuthenticated = !!state.accessToken;
-      state.isHydrated = true;
+  onRehydrateStorage: () => (rehydratedState, error) => {
+    // This callback is called AFTER rehydration completes
+    if (error) {
+      console.error('[Persist] Rehydration error:', error);
       persistRehydrated = true;
-      console.log('[Persist] onRehydrateStorage - set isAuthenticated:', state.isAuthenticated, 'isHydrated: true');
+      return;
     }
+
+    console.log('[Persist] Rehydration complete - accessToken present:', !!rehydratedState?.accessToken, 'user:', rehydratedState?.user?.email);
+    persistRehydrated = true;
+
+    // Restore cookie for middleware (middleware runs server-side and can only read cookies)
+    if (typeof window !== 'undefined' && rehydratedState?.accessToken) {
+      document.cookie = `accessToken=${rehydratedState.accessToken}; path=/; max-age=86400`;
+      console.log('[Persist] Restored accessToken cookie for middleware');
+    }
+
+    // Use setTimeout to ensure we're outside the middleware chain before updating
+    // Import store dynamically to avoid circular dependency
+    setTimeout(() => {
+      import('../index').then(({ useStore }) => {
+        const isAuth = !!rehydratedState?.accessToken;
+        console.log('[Persist] Setting isHydrated=true, isAuthenticated=', isAuth);
+        useStore.setState({
+          isHydrated: true,
+          isAuthenticated: isAuth
+        });
+      });
+    }, 0);
   },
   migrate: (persistedState: any, version: number) => {
     // Migration logic - clear old data on version mismatch

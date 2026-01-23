@@ -60,6 +60,7 @@ export interface RoomActions {
   createRoom: () => Promise<string>;
   joinRoom: (roomCode: string) => Promise<void>;
   leaveRoom: () => void;
+  setRoomData: (data: { roomCode: string; roomId?: string; isAdmin: boolean; players: RoomPlayer[] }) => void;
   updateSeating: (playerId: string, position: number) => void;
   randomizeSeating: () => void;
   setPlayers: (players: RoomPlayer[]) => void;

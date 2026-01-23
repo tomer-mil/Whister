@@ -44,17 +44,18 @@ function RoomLayoutClient({
     params.then((p) => setRoomCode(p.roomCode));
   }, [params]);
 
-  if (!roomCode) {
-    return null;
-  }
-
-  // Initialize room connection
-  useRoom({ roomCode });
+  // Initialize room connection - always call hook, pass roomCode only when available
+  useRoom({ roomCode: roomCode ?? undefined });
 
   // Handle game started event - redirect to game page
   useSocketEvent('room:game_starting', (payload: GameStartingPayload) => {
     onGameStarting(payload.game_id);
   });
+
+  // Show nothing while loading room code
+  if (!roomCode) {
+    return null;
+  }
 
   return <>{children}</>;
 }

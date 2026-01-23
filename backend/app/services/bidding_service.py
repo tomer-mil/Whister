@@ -159,19 +159,19 @@ class BiddingService:
                 return False, "Round not found"
 
             # Check if it's this player's turn
-            current_bidder_id = round_data.get(b"current_bidder_id")
-            if current_bidder_id is None or current_bidder_id.decode() != user_id:
+            current_bidder_id = round_data.get("current_bidder_id")
+            if current_bidder_id is None or current_bidder_id != user_id:
                 return False, "Not your turn"
 
             # Get current highest bid
-            highest_bid_json = round_data.get(b"highest_bid")
+            highest_bid_json = round_data.get("highest_bid")
             current_highest = None
             if highest_bid_json:
                 bid_data = json.loads(highest_bid_json)
                 current_highest = BidInfo(**bid_data)
 
             # Get minimum bid
-            minimum_bid = int(round_data.get(b"minimum_bid", 5))
+            minimum_bid = int(round_data.get("minimum_bid", 5))
 
             # Validate the bid
             is_valid, error_msg = await self.validate_trump_bid(
@@ -227,12 +227,12 @@ class BiddingService:
                 return False, "Round not found"
 
             # Check if it's this player's turn
-            current_bidder_id = round_data.get(b"current_bidder_id")
-            if current_bidder_id is None or current_bidder_id.decode() != user_id:
+            current_bidder_id = round_data.get("current_bidder_id")
+            if current_bidder_id is None or current_bidder_id != user_id:
                 return False, "Not your turn"
 
             # Increment consecutive passes
-            current_passes = int(round_data.get(b"consecutive_passes", 0))
+            current_passes = int(round_data.get("consecutive_passes", 0))
             new_passes = current_passes + 1
 
             await self.redis.hset(
@@ -269,7 +269,7 @@ class BiddingService:
                 return False, "Round not found"
 
             # Get current frisch count
-            frisch_count = int(round_data.get(b"frisch_count", 0))
+            frisch_count = int(round_data.get("frisch_count", 0))
 
             # Check if max frisch reached
             if frisch_count >= 3:
@@ -396,8 +396,8 @@ class BiddingService:
                 return False, "Round not found"
 
             # Check if it's this player's turn
-            current_bidder_id = round_data.get(b"current_bidder_id")
-            if current_bidder_id is None or current_bidder_id.decode() != user_id:
+            current_bidder_id = round_data.get("current_bidder_id")
+            if current_bidder_id is None or current_bidder_id != user_id:
                 return False, "Not your turn"
 
             # Store contract bid
@@ -439,7 +439,7 @@ class BiddingService:
 
         try:
             contracts = await self.redis.hgetall(contracts_key)
-            return {k.decode(): int(v) for k, v in contracts.items()}
+            return {k: int(v) for k, v in contracts.items()}
         except Exception:
             return {}
 

@@ -8,9 +8,11 @@ import { useStore } from '@/stores';
 import { useSocket } from './use-socket';
 import { useSocketEvent } from './use-socket-event';
 import type {
+  RoomJoinedPayload,
   PlayerJoinedPayload,
   PlayerLeftPayload,
-  SeatingUpdatedPayload,
+  PlayerDisconnectedPayload,
+  PlayerReconnectedPayload,
 } from '@/types/socket-events';
 
 export interface UseRoomOptions {
@@ -26,28 +28,52 @@ export function useRoom(options: UseRoomOptions = {}) {
 
   // Store selectors and actions
   const {
+    setRoomData,
     addPlayer,
     removePlayer,
-    updateSeating,
     updatePlayerConnection,
   } = useStore((state) => ({
+    setRoomData: state.setRoomData,
     addPlayer: state.addPlayer,
     removePlayer: state.removePlayer,
-    updateSeating: state.updateSeating,
     updatePlayerConnection: state.updatePlayerConnection,
   }));
+
+  // Handle room joined event - sets initial room state
+  useSocketEvent(
+    'room:joined',
+    useCallback(
+      (payload: RoomJoinedPayload) => {
+        console.log('[useRoom] Received room:joined', payload);
+        setRoomData({
+          roomCode: payload.room_code,
+          roomId: payload.game_id,
+          isAdmin: payload.is_admin,
+          players: payload.players.map((p) => ({
+            userId: p.user_id,
+            displayName: p.display_name,
+            seatPosition: p.seat_position,
+            isConnected: p.is_connected,
+            isAdmin: p.is_admin,
+          })),
+        });
+      },
+      [setRoomData]
+    )
+  );
 
   // Handle player joined event
   useSocketEvent(
     'room:player_joined',
     useCallback(
       (payload: PlayerJoinedPayload) => {
+        console.log('[useRoom] Received room:player_joined', payload);
         addPlayer({
-          userId: payload.user_id,
-          displayName: payload.display_name,
-          seatPosition: payload.seat_position ?? null,
-          isConnected: payload.is_connected,
-          isAdmin: false,
+          userId: payload.player.user_id,
+          displayName: payload.player.display_name,
+          seatPosition: payload.player.seat_position ?? null,
+          isConnected: payload.player.is_connected,
+          isAdmin: payload.player.is_admin,
         });
       },
       [addPlayer]
@@ -59,44 +85,34 @@ export function useRoom(options: UseRoomOptions = {}) {
     'room:player_left',
     useCallback(
       (payload: PlayerLeftPayload) => {
-        removePlayer(payload.user_id);
+        console.log('[useRoom] Received room:player_left', payload);
+        removePlayer(payload.player_id);
       },
       [removePlayer]
     )
   );
 
-  // Handle player connection status change
-  useSocketEvent(
-    'room:player_connected',
-    useCallback(
-      (payload) => {
-        updatePlayerConnection(payload.user_id, payload.is_connected);
-      },
-      [updatePlayerConnection]
-    )
-  );
-
+  // Handle player disconnected event - player temporarily disconnected
   useSocketEvent(
     'room:player_disconnected',
     useCallback(
-      (payload) => {
-        updatePlayerConnection(payload.user_id, payload.is_connected);
+      (payload: PlayerDisconnectedPayload) => {
+        console.log('[useRoom] Received room:player_disconnected', payload);
+        updatePlayerConnection(payload.player_id, false);
       },
       [updatePlayerConnection]
     )
   );
 
-  // Handle seating updated event
+  // Handle player reconnected event - player came back online
   useSocketEvent(
-    'room:seating_updated',
+    'room:player_reconnected',
     useCallback(
-      (payload: SeatingUpdatedPayload) => {
-        // Update each player's seating
-        Object.entries(payload.positions).forEach(([playerId, position]) => {
-          updateSeating(playerId, position);
-        });
+      (payload: PlayerReconnectedPayload) => {
+        console.log('[useRoom] Received room:player_reconnected', payload);
+        updatePlayerConnection(payload.player_id, true);
       },
-      [updateSeating]
+      [updatePlayerConnection]
     )
   );
 

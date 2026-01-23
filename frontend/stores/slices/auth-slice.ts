@@ -22,12 +22,13 @@ export const createAuthSlice: any = (set: any, get: any) => ({
     try {
       const response = await authApi.login({ email, password });
 
+      // Transform snake_case API response to camelCase for frontend User type
       const user = {
         id: response.user.id,
         username: response.user.username,
         email: response.user.email,
-        displayName: (response.user as any).display_name || '',
-        avatarUrl: (response.user as any).avatar_url,
+        displayName: response.user.display_name || '',
+        avatarUrl: response.user.avatar_url ?? undefined,
       };
 
       const newState = {
@@ -69,12 +70,13 @@ export const createAuthSlice: any = (set: any, get: any) => ({
         display_name: displayName,
       });
 
+      // RegisterResponse has user fields at root level, not nested under 'user'
       const user = {
-        id: response.user.id,
-        username: response.user.username,
-        email: response.user.email,
-        displayName: (response.user as any).display_name || '',
-        avatarUrl: (response.user as any).avatar_url,
+        id: response.id,
+        username: response.username,
+        email: response.email,
+        displayName: response.display_name || '',
+        avatarUrl: null,
       };
 
       set({
@@ -111,7 +113,11 @@ export const createAuthSlice: any = (set: any, get: any) => ({
       document.cookie = 'refreshToken=; path=/; max-age=0';
     }
 
-    set(initialAuthState);
+    // Reset state but keep isHydrated true (hydration already happened)
+    set({
+      ...initialAuthState,
+      isHydrated: true,
+    });
   },
 
   refreshAuth: async () => {
@@ -123,24 +129,27 @@ export const createAuthSlice: any = (set: any, get: any) => ({
     }
 
     try {
-      // TODO: Implement API call to /auth/refresh
-      // const response = await apiClient.post('/auth/refresh', {
-      //   refresh_token: refreshToken,
-      // });
-      // const { access_token, refresh_token: newRefreshToken } = response.data;
+      const response = await authApi.refreshToken(refreshToken);
 
-      // For now, mock implementation
-      const newAccessToken = 'access-token-mock-' + Date.now();
-      const newRefreshToken = 'refresh-token-mock-' + Date.now();
+      const newState = {
+        accessToken: response.access_token,
+        refreshToken: response.refresh_token || refreshToken,
+        isHydrated: true,
+        isAuthenticated: true,
+      };
 
-      set({
-        accessToken: newAccessToken,
-        refreshToken: newRefreshToken,
-      });
+      set(newState);
 
-      localStorage.setItem('accessToken', newAccessToken);
-      localStorage.setItem('refreshToken', newRefreshToken);
-    } catch {
+      // Update localStorage as well
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('accessToken', response.access_token);
+        if (response.refresh_token) {
+          localStorage.setItem('refreshToken', response.refresh_token);
+        }
+        console.log('[Auth] Token refresh successful - updated both Zustand and localStorage');
+      }
+    } catch (error) {
+      console.error('[Auth] Token refresh failed:', error);
       get().logout();
     }
   },

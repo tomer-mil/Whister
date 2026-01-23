@@ -21,6 +21,20 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _normalize_redis_hash(data: dict) -> dict[str, str]:
+    """Normalize Redis hash data to string keys and values.
+
+    Redis can return either bytes or strings depending on client configuration.
+    This function normalizes to string keys and values.
+    """
+    result = {}
+    for k, v in data.items():
+        key = k.decode() if isinstance(k, bytes) else k
+        value = v.decode() if isinstance(v, bytes) else v
+        result[key] = value
+    return result
+
+
 @dataclass
 class JoinRoomResult:
     """Result of joining a room."""
@@ -95,36 +109,30 @@ class RoomManager:
         room_code = room_code.upper()
 
         # Check room exists
-        room_data = await self.redis.hgetall(f"room:{room_code}")
-        if not room_data:
+        raw_room_data = await self.redis.hgetall(f"room:{room_code}")
+        if not raw_room_data:
             raise NotFoundError("Room not found", ErrorCode.ROOM_NOT_FOUND)
+
+        # Normalize to string keys/values
+        room_data = _normalize_redis_hash(raw_room_data)
+
+        # Validate room data has required fields
+        required_keys = ["game_id", "admin_id", "status"]
+        missing_keys = [k for k in required_keys if k not in room_data]
+        if missing_keys:
+            logger.error(
+                "Room %s missing required keys: %s. Room data: %s",
+                room_code,
+                missing_keys,
+                room_data,
+            )
+            raise NotFoundError("Room data is corrupted", ErrorCode.ROOM_NOT_FOUND)
 
         # Get players
         players = await self._get_room_players(room_code)
-        if len(players) >= 4:
-            raise NotFoundError("Room is full", ErrorCode.ROOM_FULL)
 
-        # Check for reconnection
-        reconnect_data = await self.redis.hgetall(f"reconnect:{user_id}")
-        if reconnect_data and reconnect_data.get(b"room_code") == room_code.encode():
-            # Handle reconnection - reuse same seat
-            seat_position = int(reconnect_data[b"seat_position"])
-            await self._clear_reconnection(user_id)
-            await self._update_player_connection(
-                room_code, user_id, socket_id, seat_position
-            )
-            players = await self._get_room_players(room_code)
-            return JoinRoomResult(
-                game_id=room_data[b"game_id"].decode(),
-                seat_position=seat_position,
-                is_admin=room_data[b"admin_id"].decode() == user_id,
-                players=players,
-                player_info=next(p for p in players if p.seat_position == seat_position),
-                phase=room_data[b"status"].decode(),
-                current_round=None,
-            )
-
-        # Check if player already in room
+        # Check if player already in room BEFORE checking if room is full
+        # (player might be the 4th player who joined via REST API)
         existing_seat = await self._find_player_seat(room_code, user_id)
         if existing_seat is not None:
             # Already in room, just update connection
@@ -133,21 +141,25 @@ class RoomManager:
             )
             players = await self._get_room_players(room_code)
             return JoinRoomResult(
-                game_id=room_data[b"game_id"].decode(),
+                game_id=room_data["game_id"],
                 seat_position=existing_seat,
-                is_admin=room_data[b"admin_id"].decode() == user_id,
+                is_admin=room_data["admin_id"] == user_id,
                 players=players,
                 player_info=next(p for p in players if p.seat_position == existing_seat),
-                phase=room_data[b"status"].decode(),
+                phase=room_data["status"],
                 current_round=None,
             )
+
+        # Now check if room is full (only for truly new players)
+        if len(players) >= 4:
+            raise NotFoundError("Room is full", ErrorCode.ROOM_FULL)
 
         # New join - find available seat
         occupied_seats = {p.seat_position for p in players}
         available_seat = next(s for s in range(4) if s not in occupied_seats)
 
         # Add player
-        is_admin = room_data[b"admin_id"].decode() == user_id
+        is_admin = room_data["admin_id"] == user_id
         player_info = PlayerInfo(
             user_id=user_id,
             display_name=display_name,
@@ -170,12 +182,12 @@ class RoomManager:
         updated_players = await self._get_room_players(room_code)
 
         return JoinRoomResult(
-            game_id=room_data[b"game_id"].decode(),
+            game_id=room_data["game_id"],
             seat_position=available_seat,
             is_admin=is_admin,
             players=updated_players,
             player_info=player_info,
-            phase=room_data[b"status"].decode(),
+            phase=room_data["status"],
             current_round=None,
         )
 
@@ -218,7 +230,7 @@ class RoomManager:
         # Clear connection tracking
         socket_id = await self.redis.get(f"ws:user:{user_id}")
         if socket_id:
-            await self._clear_connection(socket_id.decode())  # type: ignore
+            await self._clear_connection(socket_id)
 
         # Check if room is now empty
         remaining_players = await self._get_room_players(room_code)
@@ -257,19 +269,17 @@ class RoomManager:
             Tuple of (room_code, user_id) if player was in a room
         """
         # Get connection info
-        conn_data = await self.redis.hgetall(f"ws:socket:{socket_id}")
-        if not conn_data:
+        raw_conn_data = await self.redis.hgetall(f"ws:socket:{socket_id}")
+        if not raw_conn_data:
             return None, None
 
-        user_id = conn_data.get(b"user_id")
-        room_code = conn_data.get(b"room_code")
+        conn_data = _normalize_redis_hash(raw_conn_data)
+        user_id_str = conn_data.get("user_id")
+        room_code_str = conn_data.get("room_code")
 
-        if not user_id or not room_code:
+        if not user_id_str or not room_code_str:
             await self._clear_connection(socket_id)
             return None, None
-
-        user_id_str = user_id.decode()
-        room_code_str = room_code.decode()
 
         # Find player's seat
         seat = await self._find_player_seat(room_code_str, user_id_str)
@@ -278,8 +288,9 @@ class RoomManager:
             return None, None
 
         # Get room phase
-        room_data = await self.redis.hgetall(f"room:{room_code_str}")
-        phase = room_data.get(b"status", b"waiting").decode()
+        raw_room_data = await self.redis.hgetall(f"room:{room_code_str}")
+        room_data = _normalize_redis_hash(raw_room_data) if raw_room_data else {}
+        phase = room_data.get("status", "waiting")
 
         if phase == "waiting":
             # Game hasn't started, just remove player
@@ -343,20 +354,21 @@ class RoomManager:
 
     async def _clear_connection(self, socket_id: str) -> None:
         """Clear WebSocket connection tracking."""
-        conn_data = await self.redis.hgetall(f"ws:socket:{socket_id}")
+        raw_conn_data = await self.redis.hgetall(f"ws:socket:{socket_id}")
 
-        if conn_data:
-            user_id = conn_data.get(b"user_id")
-            room_code = conn_data.get(b"room_code")
+        if raw_conn_data:
+            conn_data = _normalize_redis_hash(raw_conn_data)
+            user_id = conn_data.get("user_id")
+            room_code = conn_data.get("room_code")
 
             pipe = self.redis.pipeline()
             pipe.delete(f"ws:socket:{socket_id}")
 
             if user_id:
-                pipe.delete(f"ws:user:{user_id.decode()}")
+                pipe.delete(f"ws:user:{user_id}")
 
             if room_code:
-                pipe.srem(f"ws:room:{room_code.decode()}", socket_id)
+                pipe.srem(f"ws:room:{room_code}", socket_id)
 
             await pipe.execute()
 
@@ -463,4 +475,5 @@ class RoomManager:
     async def is_room_admin(self, room_code: str, user_id: str) -> bool:
         """Check if a user is the room admin."""
         admin_id = await self.redis.hget(f"room:{room_code}", "admin_id")
-        return admin_id == user_id.encode() if isinstance(admin_id, bytes) else admin_id == user_id
+        # With decode_responses=True, admin_id is always a string (or None)
+        return admin_id == user_id

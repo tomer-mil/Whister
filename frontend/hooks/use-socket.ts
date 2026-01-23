@@ -5,6 +5,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { initSocket, disconnectSocket, isSocketConnected } from '@/lib/socket/client';
+import { useStore } from '@/stores';
 import type {
   TypedSocket,
   ClientToServerEvents,
@@ -76,43 +77,26 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
     }
   }, [autoConnect]);
 
+  // Get user's display name from store
+  const displayName = useStore((state) => state.user?.displayName);
+
   // Join room if roomCode provided
   useEffect(() => {
     if (!socket || !roomCode || !isConnected) {
       return;
     }
 
-    const joinRoom = async () => {
-      try {
-        await new Promise<void>((resolve, reject) => {
-          socket.emit('room:join', { room_code: roomCode }, (response) => {
-            if (response.success) {
-              resolve();
-            } else {
-              reject(new Error(response.error || 'Failed to join room'));
-            }
-          });
-        });
-      } catch (error) {
-        console.error('[useSocket] Failed to join room:', error);
-      }
-    };
-
-    joinRoom();
+    // Emit room:join event - the server will respond with room:joined event
+    // which is handled by useRoom hook
+    console.log('[useSocket] Joining room:', roomCode, 'as', displayName);
+    socket.emit('room:join', { room_code: roomCode, display_name: displayName });
 
     // Cleanup: Leave room on unmount
     return () => {
-      try {
-        socket.emit('room:leave', { room_code: roomCode }, (response) => {
-          if (!response.success) {
-            console.error('[useSocket] Failed to leave room:', response.error);
-          }
-        });
-      } catch (error) {
-        console.error('[useSocket] Error leaving room:', error);
-      }
+      console.log('[useSocket] Leaving room:', roomCode);
+      socket.emit('room:leave', { room_code: roomCode });
     };
-  }, [socket, roomCode, isConnected]);
+  }, [socket, roomCode, isConnected, displayName]);
 
   // Type-safe event emission
   const emit = useCallback(

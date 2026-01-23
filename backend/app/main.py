@@ -16,8 +16,6 @@ from app.core.redis import redis_manager
 from app.middleware.logging import LoggingMiddleware
 from app.websocket.room_manager import RoomManager
 from app.websocket.server import (
-    create_socketio_app,
-    create_socketio_server,
     register_socketio_handlers,
 )
 
@@ -29,20 +27,21 @@ room_manager: RoomManager | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Manage application lifecycle: startup and shutdown."""
-    global sio, room_manager
+    global room_manager
     settings = get_settings()
 
     # Startup
     db_manager.initialize(str(settings.database_url))
     await redis_manager.initialize(str(settings.redis_url))
 
-    # Initialize WebSocket
-    sio = create_socketio_server(redis_manager.client)  # type: ignore
-    room_manager = RoomManager(
-        redis_manager.client,  # type: ignore
-        db_manager._session_factory,
-    )
-    register_socketio_handlers(sio, room_manager)
+    # Initialize room manager and register handlers
+    # (sio is already created at module level with Redis manager)
+    if sio is not None:
+        room_manager = RoomManager(
+            redis_manager.client,  # type: ignore
+            db_manager._session_factory,
+        )
+        register_socketio_handlers(sio, room_manager)
 
     yield
 
@@ -144,18 +143,30 @@ def create_app() -> FastAPI:
 
 
 # Create FastAPI app
-_app = create_app()
+_fastapi_app = create_app()
 
-# Create ASGI app wrapping FastAPI with Socket.IO
-# This will be mounted by the server (uvicorn/gunicorn)
-# Usage: uvicorn app.main:asgi_app --host 0.0.0.0 --port 8000
-async def get_asgi_app() -> Any:
-    """Get the ASGI app (called after startup)."""
-    global sio
-    if sio is None:
-        raise RuntimeError("Socket.IO not initialized")
-    return create_socketio_app(sio, _app)
+# Create Socket.IO server with Redis manager for cross-node messaging
+# Redis manager is created at module level so Socket.IO can use it immediately
+settings = get_settings()
+_redis_mgr = socketio.AsyncRedisManager(
+    str(settings.redis_url),
+    write_only=False,
+)
+sio = socketio.AsyncServer(
+    async_mode="asgi",
+    cors_allowed_origins=settings.cors_origins,
+    logger=settings.debug,
+    engineio_logger=settings.debug,
+    ping_interval=25,
+    ping_timeout=5,
+    max_http_buffer_size=16384,
+    client_manager=_redis_mgr,
+)
 
-
-# For direct access
-app = _app
+# Create combined ASGI app that wraps FastAPI with Socket.IO
+# This is what uvicorn should run: uvicorn app.main:app --host 0.0.0.0 --port 8000
+app = socketio.ASGIApp(
+    sio,
+    _fastapi_app,
+    socketio_path="/ws/socket.io",
+)

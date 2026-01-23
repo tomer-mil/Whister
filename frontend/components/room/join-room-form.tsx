@@ -73,7 +73,7 @@ export function JoinRoomForm() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Server Error */}
           {serverError && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-lg">
               {serverError}
             </div>
           )}

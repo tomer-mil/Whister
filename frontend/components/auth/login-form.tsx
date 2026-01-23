@@ -55,7 +55,7 @@ export function LoginForm() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Server Error */}
           {serverError && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-lg">
               {serverError}
             </div>
           )}
@@ -88,11 +88,11 @@ export function LoginForm() {
           </Button>
 
           {/* Register Link */}
-          <p className="text-center text-sm text-gray-600">
+          <p className="text-center text-sm text-muted-foreground">
             Don't have an account?{' '}
             <Link
               href="/register"
-              className="text-blue-600 hover:text-blue-700 font-medium"
+              className="text-primary hover:text-primary-hover font-medium"
             >
               Register here
             </Link>

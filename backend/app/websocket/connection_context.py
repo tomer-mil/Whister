@@ -44,11 +44,11 @@ class ConnectionContext:
 
     async def join_room(self, room: str) -> None:
         """Join a Socket.IO room."""
-        self.sio.enter_room(self.socket_id, room)
+        await self.sio.enter_room(self.socket_id, room)
 
     async def leave_room(self, room: str) -> None:
         """Leave a Socket.IO room."""
-        self.sio.leave_room(self.socket_id, room)
+        await self.sio.leave_room(self.socket_id, room)
 
     def update_activity(self) -> None:
         """Update last activity timestamp."""

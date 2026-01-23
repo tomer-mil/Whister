@@ -105,7 +105,7 @@ class GroupMember(Base, UUIDPrimaryKeyMixin):
         comment="The user who is a member",
     )
     role: Mapped[GroupRole] = mapped_column(
-        Enum(GroupRole, name="group_role", native_enum=True),
+        Enum(GroupRole, name="group_role", native_enum=True, values_callable=lambda x: [e.value for e in x]),
         default=GroupRole.MEMBER,
         nullable=False,
         comment="Role within the group (owner can manage members)",

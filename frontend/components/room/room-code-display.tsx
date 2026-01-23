@@ -20,6 +20,10 @@ export function RoomCodeDisplay({ roomCode }: RoomCodeDisplayProps) {
     try {
       await navigator.clipboard.writeText(roomCode);
       setCopied(true);
+      // Trigger haptic feedback if available
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       console.error('Failed to copy:', error);
@@ -53,31 +57,32 @@ export function RoomCodeDisplay({ roomCode }: RoomCodeDisplayProps) {
   };
 
   return (
-    <Card variant="elevated" className="p-6">
-      <div className="text-center space-y-4">
-        <h3 className="text-lg font-semibold text-gray-700">Room Code</h3>
-        <div className="bg-gray-100 rounded-lg p-6">
-          <p className="text-4xl font-bold text-gray-900 tracking-widest font-mono">
+    <Card variant="elevated" className="p-4 sm:p-6 glow">
+      <div className="text-center space-y-3 sm:space-y-4">
+        <h3 className="text-sm sm:text-lg font-semibold text-muted-foreground">Room Code</h3>
+        {/* Tap-to-copy room code */}
+        <button
+          onClick={handleCopy}
+          className="w-full bg-secondary rounded-lg p-4 sm:p-6 border border-border hover:border-primary/50 active:scale-[0.98] transition-all cursor-pointer group"
+          aria-label="Tap to copy room code"
+        >
+          <p className="text-3xl sm:text-4xl font-bold text-primary tracking-widest font-mono group-hover:text-primary/80">
             {roomCode}
           </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="primary"
-            onClick={handleCopy}
-            className="flex-1"
-          >
-            {copied ? '✓ Copied' : 'Copy Code'}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={handleShare}
-            className="flex-1"
-          >
-            Share
-          </Button>
-        </div>
-        <p className="text-sm text-gray-600">
+          <p className="text-xs text-muted-foreground mt-2 group-hover:text-foreground/70">
+            {copied ? '✓ Copied!' : 'Tap to copy'}
+          </p>
+        </button>
+        {/* Share button - full width on mobile */}
+        <Button
+          variant="secondary"
+          onClick={handleShare}
+          fullWidth
+          size="lg"
+        >
+          Share with Friends
+        </Button>
+        <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
           Share this code with friends to join the game
         </p>
       </div>

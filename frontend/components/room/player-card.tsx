@@ -17,15 +17,15 @@ export interface PlayerCardProps {
 export function PlayerCard({ player, seatNumber }: PlayerCardProps) {
   if (!player) {
     return (
-      <Card variant="outlined" className="p-4">
+      <Card variant="outlined" className="p-4 border-dashed">
         <div className="text-center space-y-2">
           <div className="flex justify-center">
-            <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
-              <span className="text-gray-400">?</span>
+            <div className="w-12 h-12 bg-secondary/50 rounded-full flex items-center justify-center border-2 border-dashed border-border">
+              <span className="text-muted-foreground text-xl">+</span>
             </div>
           </div>
-          <p className="text-sm font-medium text-gray-400">Seat {seatNumber}</p>
-          <p className="text-xs text-gray-400">Waiting for player...</p>
+          <p className="text-sm font-medium text-muted-foreground">Seat {seatNumber}</p>
+          <p className="text-xs text-muted-foreground">Waiting...</p>
         </div>
       </Card>
     );
@@ -43,21 +43,21 @@ export function PlayerCard({ player, seatNumber }: PlayerCardProps) {
           <div className="flex items-center gap-2">
             <Avatar initials={player.displayName.charAt(0)} size="md" alt={player.displayName} />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {player.displayName}
-              </p>
-              <p className="text-xs text-gray-500">Seat {seatNumber}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-medium text-foreground truncate">
+                  {player.displayName}
+                </p>
+                {player.isAdmin && (
+                  <span className="text-amber-400 text-sm" title="Room Admin">&#9733;</span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">Seat {seatNumber}</p>
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            {player.isAdmin && (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                Admin
-              </span>
-            )}
+          <div className="flex items-center gap-2">
             <div
-              className={`w-2 h-2 rounded-full ${
-                player.isConnected ? 'bg-green-500' : 'bg-gray-300'
+              className={`w-3 h-3 rounded-full ${
+                player.isConnected ? 'bg-success' : 'bg-destructive/60'
               }`}
               title={player.isConnected ? 'Connected' : 'Disconnected'}
             />

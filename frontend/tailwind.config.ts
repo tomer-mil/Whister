@@ -16,31 +16,56 @@ const config: Config = {
     },
     extend: {
       colors: {
-        // Brand colors
+        // CSS variable-based colors
+        background: 'hsl(var(--background))',
+        'background-secondary': 'hsl(var(--background-secondary))',
+        foreground: 'hsl(var(--foreground))',
+        card: {
+          DEFAULT: 'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))',
+          hover: 'hsl(var(--card-hover))',
+        },
         primary: {
-          50: '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))',
+          hover: 'hsl(var(--primary-hover))',
         },
-        // Suit colors
+        secondary: {
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))',
+          hover: 'hsl(var(--secondary-hover))',
+        },
+        muted: {
+          DEFAULT: 'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))',
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--accent))',
+          foreground: 'hsl(var(--accent-foreground))',
+        },
+        destructive: {
+          DEFAULT: 'hsl(var(--destructive))',
+          foreground: 'hsl(var(--destructive-foreground))',
+        },
+        success: {
+          DEFAULT: 'hsl(var(--success))',
+          foreground: 'hsl(var(--success-foreground))',
+        },
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
+        // Suit colors (adjusted for dark mode)
         suit: {
-          clubs: '#1a1a1a',
-          diamonds: '#dc2626',
-          hearts: '#dc2626',
-          spades: '#1a1a1a',
+          clubs: '#a1a1aa',
+          diamonds: '#f87171',
+          hearts: '#f87171',
+          spades: '#a1a1aa',
         },
-        // Score colors
+        // Score colors (adjusted for dark mode)
         score: {
-          positive: '#16a34a',
-          negative: '#dc2626',
-          neutral: '#6b7280',
+          positive: '#4ade80',
+          negative: '#f87171',
+          neutral: '#9ca3af',
         },
       },
       fontFamily: {
@@ -79,6 +104,15 @@ const config: Config = {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
         },
+        'glow-pulse': {
+          '0%, 100%': { boxShadow: '0 0 20px hsl(var(--primary) / 0.15)' },
+          '50%': { boxShadow: '0 0 30px hsl(var(--primary) / 0.25)' },
+        },
+      },
+      borderRadius: {
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)',
       },
     },
   },

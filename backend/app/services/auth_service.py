@@ -71,7 +71,8 @@ class AuthService:
             last_active=datetime.now(),
         )
         self.db.add(user)
-        await self.db.flush()  # Get the ID without committing
+        await self.db.commit()  # Ensure user is persisted to database
+        await self.db.refresh(user)  # Refresh to get database defaults (created_at, id, etc)
 
         # Generate tokens
         access_token = create_access_token(str(user.id))

@@ -96,7 +96,7 @@ def register_bidding_handlers(  # noqa: C901
             try:
                 players = await room_manager._get_room_players(payload.room_code)
                 player_info = next(
-                    (p for p in players if p["user_id"] == ctx.user_id), None
+                    (p for p in players if p.user_id == ctx.user_id), None
                 )
                 if not player_info:
                     await emit_error(

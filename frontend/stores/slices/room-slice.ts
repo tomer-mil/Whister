@@ -100,6 +100,17 @@ export const createRoomSlice: any = (set: any, get: any) => ({
     set(initialRoomState);
   },
 
+  setRoomData: (data: { roomCode: string; roomId?: string; isAdmin: boolean; players: any[] }) => {
+    set({
+      roomCode: data.roomCode,
+      roomId: data.roomId || null,
+      isAdmin: data.isAdmin,
+      players: data.players,
+      isJoining: false,
+      isCreating: false,
+    });
+  },
+
   updateSeating: (playerId, position) => {
     set((state) => ({
       players: state.players.map((p) =>

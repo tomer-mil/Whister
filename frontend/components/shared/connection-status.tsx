@@ -35,7 +35,7 @@ export function ConnectionStatus() {
         variants={connectionPulseVariants}
         animate={status}
       />
-      <span className="text-xs text-gray-600 font-medium">{config.text}</span>
+      <span className="text-xs text-muted-foreground font-medium">{config.text}</span>
     </div>
   );
 }

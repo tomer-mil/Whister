@@ -7,18 +7,18 @@ import { useCallback, useEffect } from 'react';
 import { useSocket } from './use-socket';
 import { useStore } from '@/stores';
 import type {
-  TrickClaimedPayload,
+  RoundTrickWonPayload,
   RoundCompletePayload,
 } from '@/types/socket-events';
 
 export interface UseGameOptions {
-  roomCode?: string;
+  roomCode: string;
 }
 
 /**
  * Hook for game phase management and trick claiming
  */
-export function useGame(options: UseGameOptions = {}) {
+export function useGame(options: UseGameOptions) {
   const { roomCode } = options;
   const { socket, emit } = useSocket({ autoConnect: true, roomCode });
 
@@ -27,55 +27,48 @@ export function useGame(options: UseGameOptions = {}) {
   const addRoundScore = useStore((state) => state.addRoundScore);
   const setGameState = useStore((state) => state.setGameState);
 
-  // Claim a trick
+  // Claim a trick - uses backend event name round:claim_trick
   const claimTrick = useCallback(async () => {
-    const response = await emit('game:claim_trick', {});
+    const response = await emit('round:claim_trick', { room_code: roomCode });
     if (!response?.success) {
       throw new Error(response?.error || 'Failed to claim trick');
     }
-  }, [emit]);
+  }, [emit, roomCode]);
 
-  // Undo last trick claim (admin only)
+  // Undo last trick claim (admin only) - uses backend event name round:undo_trick
   const undoTrick = useCallback(
     async (playerId: string) => {
-      const response = await emit('game:undo_trick', { player_id: playerId });
+      const response = await emit('round:undo_trick', { room_code: roomCode, player_id: playerId });
       if (!response?.success) {
         throw new Error(response?.error || 'Failed to undo trick');
       }
     },
-    [emit]
+    [emit, roomCode]
   );
 
-  // End current round (admin only)
-  const endRound = useCallback(async () => {
-    const response = await emit('game:end_round', {});
-    if (!response?.success) {
-      throw new Error(response?.error || 'Failed to end round');
-    }
-  }, [emit]);
-
-  // Subscribe to game events
+  // Subscribe to game events using backend event names
   useEffect(() => {
     if (!socket) return;
 
-    // Trick claimed
-    socket.on('game:trick_claimed', (payload: TrickClaimedPayload) => {
+    // Trick won - backend sends round:trick_won
+    socket.on('round:trick_won', (payload: RoundTrickWonPayload) => {
       updatePlayer(payload.player_id, {
         tricksWon: payload.new_trick_count,
       });
     });
 
-    // Round complete with results
-    socket.on('game:round_complete', (payload: RoundCompletePayload) => {
-      const roundScore = payload.players.map((p) => ({
-        playerId: p.player_id,
-        displayName: p.display_name,
-        seatPosition: p.seat_position,
-        contractBid: p.contract_bid,
-        tricksWon: p.tricks_won,
-        score: p.score,
-        madeContract: p.made_contract,
-        cumulativeScore: p.cumulative_score,
+    // Round complete with results - backend sends round:complete
+    socket.on('round:complete', (payload: RoundCompletePayload) => {
+      // Map cumulative_scores to player scores format
+      const roundScore = payload.cumulative_scores.map((score) => ({
+        playerId: score.player_id,
+        displayName: score.player_name,
+        seatPosition: payload.players.find((p) => p.player_id === score.player_id)?.seat_position ?? 0,
+        contractBid: payload.players.find((p) => p.player_id === score.player_id)?.amount ?? 0,
+        tricksWon: 0, // Not provided in backend payload - would need to track separately
+        score: score.round_score,
+        madeContract: true, // Not provided in backend payload
+        cumulativeScore: score.total_score,
       }));
 
       addRoundScore({
@@ -84,7 +77,7 @@ export function useGame(options: UseGameOptions = {}) {
         gameType: payload.game_type,
         trumpWinnerId: '', // Will be populated from game state
         playerScores: roundScore,
-        commentary: payload.commentary,
+        commentary: [], // Backend doesn't send commentary
       });
 
       setGameState({
@@ -93,8 +86,8 @@ export function useGame(options: UseGameOptions = {}) {
     });
 
     return () => {
-      socket.off('game:trick_claimed');
-      socket.off('game:round_complete');
+      socket.off('round:trick_won');
+      socket.off('round:complete');
     };
   }, [socket, updatePlayer, addRoundScore, setGameState]);
 
@@ -103,7 +96,6 @@ export function useGame(options: UseGameOptions = {}) {
     emit,
     claimTrick,
     undoTrick,
-    endRound,
   };
 }
 

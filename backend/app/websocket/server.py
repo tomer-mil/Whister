@@ -24,6 +24,10 @@ from app.websocket.schemas import (
 
 logger = logging.getLogger(__name__)
 
+# Store connection contexts by socket ID
+# (sio.rooms is a method, not a dict, so we use our own storage)
+_connection_contexts: dict[str, ConnectionContext] = {}
+
 
 def create_socketio_server(redis: Any) -> "socketio.AsyncServer":  # type: ignore
     """Create and configure the Socket.IO async server.
@@ -105,7 +109,7 @@ def register_socketio_handlers(  # noqa: C901
             # Verify token
             try:
                 payload = decode_token(token)
-                user_id = payload.get("user_id")
+                user_id = payload.get("sub")
                 if not user_id:
                     logger.warning("Invalid token payload for %s", sid)
                     return False
@@ -123,7 +127,7 @@ def register_socketio_handlers(  # noqa: C901
             )
 
             # Store context
-            sio.rooms[sid] = ctx
+            _connection_contexts[sid] = ctx
             logger.info("User %s connected with socket %s", user_id, sid)
             return True
 
@@ -135,7 +139,7 @@ def register_socketio_handlers(  # noqa: C901
     async def disconnect(sid: str) -> None:
         """Handle WebSocket disconnection."""
         try:
-            ctx = sio.rooms.get(sid)
+            ctx = _connection_contexts.get(sid)
             if ctx:
                 # Handle room disconnect
                 room_code, user_id = await room_manager.handle_disconnect(sid)
@@ -149,7 +153,7 @@ def register_socketio_handlers(  # noqa: C901
                     await ctx.broadcast_to_room(
                         f"room:{room_code}",
                         ServerEvents.ROOM_PLAYER_DISCONNECTED,
-                        broadcast_payload.model_dump(),
+                        broadcast_payload.to_dict(),
                     )
                     logger.info(
                         "User %s disconnected from room %s", user_id, room_code
@@ -157,7 +161,7 @@ def register_socketio_handlers(  # noqa: C901
                 else:
                     logger.info("User %s disconnected", ctx.user_id)
 
-                del sio.rooms[sid]
+                del _connection_contexts[sid]
         except Exception as e:
             logger.exception("Error in disconnect handler: %s", e)
 
@@ -165,7 +169,7 @@ def register_socketio_handlers(  # noqa: C901
     async def handle_room_join(sid: str, data: dict[str, Any]) -> None:
         """Handle room:join event."""
         try:
-            ctx = sio.rooms.get(sid)
+            ctx = _connection_contexts.get(sid)
             if not ctx:
                 await emit_error(
                     sio,
@@ -190,6 +194,11 @@ def register_socketio_handlers(  # noqa: C901
 
             # Join room
             try:
+                logger.info(
+                    "User %s attempting to join room %s",
+                    ctx.user_id,
+                    payload.room_code,
+                )
                 join_result = await room_manager.join_room(
                     room_code=payload.room_code,
                     user_id=ctx.user_id,
@@ -216,7 +225,7 @@ def register_socketio_handlers(  # noqa: C901
                     phase=join_result.phase,  # type: ignore
                     current_round=join_result.current_round,
                 )
-                await ctx.emit(ServerEvents.ROOM_JOINED, joined_payload.model_dump())
+                await ctx.emit(ServerEvents.ROOM_JOINED, joined_payload.to_dict())
 
                 # Broadcast to room
                 player_joined_payload = RoomPlayerJoinedPayload(
@@ -226,7 +235,7 @@ def register_socketio_handlers(  # noqa: C901
                 await ctx.broadcast_to_room(
                     f"room:{payload.room_code}",
                     ServerEvents.ROOM_PLAYER_JOINED,
-                    player_joined_payload.model_dump(),
+                    player_joined_payload.to_dict(),
                     exclude_self=True,
                 )
 
@@ -258,7 +267,7 @@ def register_socketio_handlers(  # noqa: C901
     async def handle_room_leave(sid: str, data: dict[str, Any]) -> None:
         """Handle room:leave event."""
         try:
-            ctx = sio.rooms.get(sid)
+            ctx = _connection_contexts.get(sid)
             if not ctx:
                 await emit_error(
                     sio,
@@ -298,14 +307,14 @@ def register_socketio_handlers(  # noqa: C901
                     room_code=payload.room_code,
                     reason="voluntary",
                 )
-                await ctx.emit(ServerEvents.ROOM_LEFT, left_payload.model_dump())
+                await ctx.emit(ServerEvents.ROOM_LEFT, left_payload.to_dict())
 
                 # Broadcast if room still exists
                 if leave_result.room_still_exists and leave_result.broadcast_payload:
                     await ctx.broadcast_to_room(
                         f"room:{payload.room_code}",
                         ServerEvents.ROOM_PLAYER_LEFT,
-                        leave_result.broadcast_payload.model_dump(),
+                        leave_result.broadcast_payload.to_dict(),
                     )
 
                 logger.info("User %s left room %s", ctx.user_id, payload.room_code)
@@ -352,4 +361,4 @@ async def emit_error(
         details=details,
         recoverable=recoverable,
     )
-    await sio.emit(ServerEvents.ERROR, error_payload.model_dump(), to=sid)
+    await sio.emit(ServerEvents.ERROR, error_payload.to_dict(), to=sid)

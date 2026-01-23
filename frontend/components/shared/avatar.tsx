@@ -42,7 +42,7 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
         ref={ref}
         className={cn(
           'relative flex items-center justify-center rounded-full ' +
-          'overflow-hidden bg-gradient-to-br from-indigo-400 to-indigo-600 ' +
+          'overflow-hidden bg-gradient-to-br from-primary/80 to-primary ' +
           'flex-shrink-0',
           sizeClasses[size],
           className

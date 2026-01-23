@@ -8,29 +8,29 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner';
 
 const buttonVariants = cva(
   'inline-flex items-center justify-center rounded-lg font-medium transition-all ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ' +
   'disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]',
   {
     variants: {
       variant: {
         primary:
-          'bg-indigo-600 text-white hover:bg-indigo-700 ' +
-          'focus-visible:ring-indigo-500',
+          'bg-primary text-primary-foreground hover:bg-primary-hover ' +
+          'shadow-lg shadow-primary/20',
         secondary:
-          'bg-gray-100 text-gray-900 hover:bg-gray-200 ' +
-          'focus-visible:ring-gray-500',
+          'bg-secondary text-secondary-foreground hover:bg-secondary-hover ' +
+          'border border-border',
         outline:
-          'border-2 border-gray-300 bg-transparent hover:bg-gray-50 ' +
-          'focus-visible:ring-gray-500',
+          'border-2 border-border bg-transparent text-foreground hover:bg-secondary ' +
+          'hover:border-primary/50',
         destructive:
-          'bg-red-600 text-white hover:bg-red-700 ' +
-          'focus-visible:ring-red-500',
+          'bg-destructive text-destructive-foreground hover:bg-destructive/90 ' +
+          'shadow-lg shadow-destructive/20',
         ghost:
-          'bg-transparent hover:bg-gray-100 ' +
-          'focus-visible:ring-gray-500',
+          'bg-transparent text-foreground hover:bg-secondary ' +
+          'hover:text-foreground',
         success:
-          'bg-emerald-600 text-white hover:bg-emerald-700 ' +
-          'focus-visible:ring-emerald-500',
+          'bg-success text-success-foreground hover:bg-success/90 ' +
+          'shadow-lg shadow-success/20',
       },
       size: {
         sm: 'h-9 px-3 text-sm',

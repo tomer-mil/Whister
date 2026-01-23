@@ -58,7 +58,7 @@ class Game(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     # Game state
     status: Mapped[GameStatus] = mapped_column(
-        Enum(GameStatus, name="game_status", native_enum=True),
+        Enum(GameStatus, name="game_status", native_enum=True, values_callable=lambda x: [e.value for e in x]),
         default=GameStatus.WAITING,
         nullable=False,
         index=True,

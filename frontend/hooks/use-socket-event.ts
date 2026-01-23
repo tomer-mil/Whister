@@ -10,21 +10,21 @@ import type { ServerToClientEvents, TypedSocket } from '@/types/socket-events';
 /**
  * Hook for subscribing to Socket.IO server events
  * Automatically handles cleanup on unmount
+ *
+ * Uses a ref pattern to always call the latest handler without re-subscribing
  */
 export function useSocketEvent<K extends keyof ServerToClientEvents>(
   event: K,
-  handler: ServerToClientEvents[K],
-  deps?: React.DependencyList
+  handler: ServerToClientEvents[K]
 ): void {
-  const depsArray = deps || [];
   const handlerRef = useRef(handler);
 
-  // Update handler ref when handler changes
+  // Update handler ref when handler changes (avoids stale closures)
   useEffect(() => {
     handlerRef.current = handler;
   }, [handler]);
 
-  // Subscribe to socket event
+  // Subscribe to socket event - only re-subscribes when event name changes
   useEffect(() => {
     let socket: TypedSocket | null = null;
 
@@ -35,18 +35,18 @@ export function useSocketEvent<K extends keyof ServerToClientEvents>(
       return;
     }
 
-    // Wrap handler with ref to avoid stale closures
+    // Wrap handler with ref to always use latest handler
     const wrappedHandler = (...args: any[]) => {
       (handlerRef.current as any)(...args);
     };
 
     socket.on(event as any, wrappedHandler);
 
-    // Cleanup: Remove listener on unmount
+    // Cleanup: Remove listener on unmount or when event changes
     return () => {
       socket?.off(event as any, wrappedHandler);
     };
-  }, [event, depsArray]);
+  }, [event]);
 }
 
 export default useSocketEvent;

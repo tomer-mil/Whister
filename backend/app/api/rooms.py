@@ -1,4 +1,6 @@
 """Room API routes."""
+import logging
+
 from fastapi import APIRouter, status
 
 from app.dependencies.auth import CurrentUser
@@ -13,6 +15,13 @@ from app.schemas.room import (
     StartGameResponse,
     UpdateSeatingRequest,
 )
+from app.websocket.schemas import (
+    GameStartingPlayerInfo,
+    RoomGameStartingPayload,
+    ServerEvents,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/rooms", tags=["Rooms"])
 
@@ -245,4 +254,34 @@ async def start_game(
     - 404: Room not found
     - 422: Room doesn't have exactly 4 players
     """
-    return await room_service.start_game(room_code.upper(), current_user)
+    normalized_room_code = room_code.upper()
+    result = await room_service.start_game(normalized_room_code, current_user)
+
+    # Emit WebSocket event to notify all players in the room
+    # Import sio lazily to avoid circular imports
+    from app.main import sio
+
+    if sio is not None:
+        # Get room state to get players with seat positions
+        room_state = await room_service.get_room(normalized_room_code)
+        players = [
+            GameStartingPlayerInfo(
+                user_id=str(p.user_id),
+                seat_position=p.seat_position,
+            )
+            for p in room_state.players
+        ]
+
+        payload = RoomGameStartingPayload(
+            game_id=str(result.game_id),
+            players=players,
+        )
+
+        logger.info("Emitting room:game_starting to room:%s", normalized_room_code)
+        await sio.emit(
+            ServerEvents.ROOM_GAME_STARTING,
+            payload.to_dict(),
+            room=f"room:{normalized_room_code}",
+        )
+
+    return result

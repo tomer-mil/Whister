@@ -21,7 +21,12 @@ export default function CreateRoomPage() {
     setIsLoading(true);
 
     try {
+      console.log('[CreateRoom] Creating room...');
+      const accessToken = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+      console.log('[CreateRoom] Have accessToken:', !!accessToken);
+
       const response = await roomsApi.createRoom();
+      console.log('[CreateRoom] Room created:', response);
       setRoomCodeState(response.room_code);
 
       // Auto-join the created room
@@ -29,6 +34,7 @@ export default function CreateRoomPage() {
         router.push(`/room/${response.room_code}`);
       }, 2000);
     } catch (err) {
+      console.log('[CreateRoom] Error:', err);
       const errorMessage =
         err instanceof Error ? err.message : 'Failed to create room';
       setError(errorMessage);
@@ -38,26 +44,26 @@ export default function CreateRoomPage() {
 
   if (roomCode) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-          <Card variant="elevated">
+          <Card variant="elevated" className="glow">
             <CardHeader>
               <CardTitle className="text-center">Room Created!</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6 text-center">
               <div>
-                <p className="text-sm text-gray-600 mb-2">Your room code:</p>
-                <div className="bg-gray-100 rounded-lg p-6">
-                  <p className="text-4xl font-bold text-gray-900 tracking-widest font-mono">
+                <p className="text-sm text-muted-foreground mb-2">Your room code:</p>
+                <div className="bg-secondary rounded-lg p-6 border border-border">
+                  <p className="text-4xl font-bold text-primary tracking-widest font-mono">
                     {roomCode}
                   </p>
                 </div>
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 Redirecting to room lobby...
               </p>
               <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
               </div>
             </CardContent>
           </Card>
@@ -67,7 +73,7 @@ export default function CreateRoomPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <Card variant="elevated">
           <CardHeader>
@@ -75,11 +81,11 @@ export default function CreateRoomPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+              <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-lg">
                 {error}
               </div>
             )}
-            <p className="text-gray-600 text-center">
+            <p className="text-muted-foreground text-center">
               Create a new Whist game room. You'll be the admin and can manage
               the game.
             </p>

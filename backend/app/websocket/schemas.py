@@ -25,6 +25,22 @@ class BasePayload(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    def to_dict(self) -> dict:
+        """Convert to dict with datetime objects serialized to ISO strings."""
+        data = self.model_dump()
+        return _serialize_datetimes(data)
+
+
+def _serialize_datetimes(obj: dict | list | object) -> dict | list | object:
+    """Recursively serialize datetime objects to ISO strings."""
+    if isinstance(obj, dict):
+        return {k: _serialize_datetimes(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_serialize_datetimes(item) for item in obj]
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    return obj
+
 
 class TimestampedPayload(BasePayload):
     """Payload with timestamp."""
@@ -146,6 +162,20 @@ class GameStartedPayload(TimestampedPayload):
     current_round: int
     first_bidder_id: str
     players: list[PlayerInfo]
+
+
+class GameStartingPlayerInfo(BaseModel):
+    """Simplified player info for game starting event."""
+
+    user_id: str
+    seat_position: int
+
+
+class RoomGameStartingPayload(TimestampedPayload):
+    """Payload for room:game_starting event (broadcast to room)."""
+
+    game_id: str
+    players: list[GameStartingPlayerInfo]
 
 
 # Error Payloads
@@ -403,6 +433,7 @@ class ServerEvents:
 
     # Game events
     GAME_STARTED: str = "game:started"
+    ROOM_GAME_STARTING: str = "room:game_starting"
 
     # Bidding events
     BID_YOUR_TURN: str = "bid:your_turn"

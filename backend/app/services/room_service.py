@@ -27,6 +27,7 @@ from app.schemas.room import (
     UpdateSeatingRequest,
 )
 from app.services.room_code_generator import get_unique_room_code
+from app.websocket.schemas import PlayerInfo
 
 
 class RoomService:
@@ -86,6 +87,17 @@ class RoomService:
         self.db.add(game)
         await self.db.flush()
 
+        # Add admin as first player in database (seat 0)
+        admin_player = GamePlayer(
+            game_id=game.id,
+            user_id=current_user.id,
+            display_name=current_user.display_name,
+            seat_position=0,
+            is_admin=True,
+        )
+        self.db.add(admin_player)
+        await self.db.flush()
+
         # Initialize room in Redis
         now = datetime.utcnow().isoformat()
         pipe = self.redis.pipeline()
@@ -103,8 +115,21 @@ class RoomService:
         )
         pipe.expire(f"room:{room_code}", int(self.ROOM_TTL.total_seconds()))
 
-        # Initialize empty players hash
+        # Initialize players hash with admin
+        admin_player_info = PlayerInfo(
+            user_id=str(current_user.id),
+            display_name=current_user.display_name,
+            seat_position=0,
+            is_admin=True,
+            is_connected=False,  # Will be set to True when WebSocket connects
+            avatar_url=current_user.avatar_url,
+        )
         pipe.delete(f"room:{room_code}:players")
+        pipe.hset(
+            f"room:{room_code}:players",
+            "0",
+            admin_player_info.model_dump_json(),
+        )
 
         await pipe.execute()
 
@@ -146,11 +171,11 @@ class RoomService:
 
         return RoomState(
             room_code=room_code,
-            game_id=UUID(room_data[b"game_id"].decode()),
-            admin_id=UUID(room_data[b"admin_id"].decode()),
-            status=room_data[b"status"].decode(),
+            game_id=UUID(room_data["game_id"]),
+            admin_id=UUID(room_data["admin_id"]),
+            status=room_data["status"],
             players=players,
-            created_at=datetime.fromisoformat(room_data[b"created_at"].decode()),
+            created_at=datetime.fromisoformat(room_data["created_at"]),
             current_round=None,
         )
 
@@ -183,57 +208,77 @@ class RoomService:
             raise NotFoundError("Room not found", ErrorCode.ROOM_NOT_FOUND)
 
         # Check if player already in room
-        game_id = UUID(room_data[b"game_id"].decode())
+        game_id = UUID(room_data["game_id"])
         result = await self.db.execute(
             select(GamePlayer).where(
                 (GamePlayer.game_id == game_id)
                 & (GamePlayer.user_id == current_user.id)
             )
         )
-        if result.scalar_one_or_none():
-            raise ConflictError(
-                "You are already in this room", ErrorCode.PLAYER_ALREADY_IN_ROOM
-            )
-
-        # Find available seat
-        players_data = await self.redis.hgetall(f"room:{room_code}:players")
-        available_seat: int | None = None
-        for seat in range(4):
-            if str(seat) not in players_data:
-                available_seat = seat
-                break
-
-        if available_seat is None:
-            raise ConflictError("Room is full (maximum 4 players)", ErrorCode.ROOM_FULL)
+        existing_player = result.scalar_one_or_none()
 
         # Get display name (use override or user's default)
         display_name = request.display_name or current_user.display_name
 
-        # Add to database
-        game_player = GamePlayer(
-            game_id=game_id,
-            user_id=current_user.id,
+        if existing_player:
+            # Player exists in DB - check if they're still in Redis (active)
+            redis_player = await self.redis.hget(
+                f"room:{room_code}:players",
+                str(existing_player.seat_position),
+            )
+            if redis_player:
+                # Player is in both DB and Redis - they're active, reject
+                raise ConflictError(
+                    "You are already in this room", ErrorCode.PLAYER_ALREADY_IN_ROOM
+                )
+
+            # Player is in DB but not Redis - they left and are rejoining
+            # Re-add them to Redis with their existing seat
+            available_seat = existing_player.seat_position
+            existing_player.display_name = display_name
+            existing_player.is_connected = True
+            await self.db.flush()
+        else:
+            # New player - find available seat using database as source of truth
+            result = await self.db.execute(
+                select(GamePlayer.seat_position).where(GamePlayer.game_id == game_id)
+            )
+            taken_seats = {row[0] for row in result.fetchall()}
+
+            available_seat: int | None = None
+            for seat in range(4):
+                if seat not in taken_seats:
+                    available_seat = seat
+                    break
+
+            if available_seat is None:
+                raise ConflictError("Room is full (maximum 4 players)", ErrorCode.ROOM_FULL)
+
+            # Add to database
+            game_player = GamePlayer(
+                game_id=game_id,
+                user_id=current_user.id,
+                display_name=display_name,
+                seat_position=available_seat,
+                is_admin=False,
+            )
+            self.db.add(game_player)
+            await self.db.flush()
+
+        # Add to Redis using PlayerInfo for consistent format with room_manager
+        player_info = PlayerInfo(
+            user_id=str(current_user.id),
             display_name=display_name,
             seat_position=available_seat,
             is_admin=False,
+            is_connected=True,
+            avatar_url=current_user.avatar_url,
         )
-        self.db.add(game_player)
-        await self.db.flush()
-
-        # Add to Redis
-        player_data = {
-            "user_id": str(current_user.id),
-            "display_name": display_name,
-            "seat_position": available_seat,
-            "is_admin": False,
-            "is_connected": True,
-            "avatar_url": current_user.avatar_url,
-        }
 
         await self.redis.hset(
             f"room:{room_code}:players",
             str(available_seat),
-            json.dumps(player_data),
+            player_info.model_dump_json(),
         )
         await self._refresh_ttl(room_code)
 
@@ -264,7 +309,7 @@ class RoomService:
         if not room_data:
             raise NotFoundError("Room not found", ErrorCode.ROOM_NOT_FOUND)
 
-        game_id = UUID(room_data[b"game_id"].decode())
+        game_id = UUID(room_data["game_id"])
 
         # Remove from database
         result = await self.db.execute(
@@ -312,14 +357,14 @@ class RoomService:
         if not room_data:
             raise NotFoundError("Room not found", ErrorCode.ROOM_NOT_FOUND)
 
-        admin_id = UUID(room_data[b"admin_id"].decode())
+        admin_id = UUID(room_data["admin_id"])
 
         # Check authorization
         if current_user.id != admin_id:
             raise AuthorizationError("Only the room admin can update seating")
 
         # Get current players
-        game_id = UUID(room_data[b"game_id"].decode())
+        game_id = UUID(room_data["game_id"])
         result = await self.db.execute(
             select(GamePlayer)
             .where(GamePlayer.game_id == game_id)
@@ -394,13 +439,13 @@ class RoomService:
         if not room_data:
             raise NotFoundError("Room not found", ErrorCode.ROOM_NOT_FOUND)
 
-        admin_id = UUID(room_data[b"admin_id"].decode())
+        admin_id = UUID(room_data["admin_id"])
 
         # Check authorization
         if current_user.id != admin_id:
             raise AuthorizationError("Only the room admin can start the game")
 
-        game_id = UUID(room_data[b"game_id"].decode())
+        game_id = UUID(room_data["game_id"])
 
         # Get players and validate count
         result = await self.db.execute(
@@ -433,20 +478,20 @@ class RoomService:
         )
         await self._refresh_ttl(room_code)
 
+        # Get the first bidder (player in seat 0)
+        first_bidder_result = await self.db.execute(
+            select(GamePlayer.user_id)
+            .where(GamePlayer.game_id == game_id)
+            .order_by(GamePlayer.seat_position)
+            .limit(1)
+        )
+        first_bidder_id = first_bidder_result.scalar()
+
         return StartGameResponse(
             game_id=game_id,
             status="bidding_trump",
             current_round=1,
-            first_bidder_id=UUID(
-                (
-                    await self.db.execute(
-                        select(GamePlayer.user_id)
-                        .where(GamePlayer.game_id == game_id)
-                        .order_by(GamePlayer.seat_position)
-                        .limit(1)
-                    )
-                ).scalar()
-            ),
+            first_bidder_id=first_bidder_id,  # Already a UUID from asyncpg
             message="Game started",
         )
 
