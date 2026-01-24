@@ -1,6 +1,7 @@
 """Room manager for WebSocket room state management."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -108,88 +109,177 @@ class RoomManager:
         """
         room_code = room_code.upper()
 
-        # Check room exists
-        raw_room_data = await self.redis.hgetall(f"room:{room_code}")
-        if not raw_room_data:
-            raise NotFoundError("Room not found", ErrorCode.ROOM_NOT_FOUND)
+        # DEDUPLICATION: Check if this user is already joining this room
+        # This prevents race conditions from duplicate join requests
+        join_lock_key = f"room:{room_code}:joining:{user_id}"
 
-        # Normalize to string keys/values
-        room_data = _normalize_redis_hash(raw_room_data)
+        # Try to acquire lock (set if not exists with 5-second TTL)
+        lock_acquired = await self.redis.set(
+            join_lock_key,
+            "1",
+            ex=5,  # 5-second expiration
+            nx=True,  # Only set if not exists
+        )
 
-        # Validate room data has required fields
-        required_keys = ["game_id", "admin_id", "status"]
-        missing_keys = [k for k in required_keys if k not in room_data]
-        if missing_keys:
-            logger.error(
-                "Room %s missing required keys: %s. Room data: %s",
+        if not lock_acquired:
+            # Another join request is already in progress
+            # Wait briefly and check if player already joined
+            logger.info(
+                "Duplicate join detected for user %s in room %s, waiting...",
+                user_id,
                 room_code,
-                missing_keys,
-                room_data,
             )
-            raise NotFoundError("Room data is corrupted", ErrorCode.ROOM_NOT_FOUND)
+            await asyncio.sleep(0.5)  # Wait 500ms for in-flight join to complete
 
-        # Get players
-        players = await self._get_room_players(room_code)
+            # Check if player is now in room
+            existing_seat = await self._find_player_seat(room_code, user_id)
+            if existing_seat is not None:
+                # Join completed by previous request, return result
+                raw_room_data = await self.redis.hgetall(f"room:{room_code}")
+                if raw_room_data:
+                    room_data = _normalize_redis_hash(raw_room_data)
+                    players = await self._get_room_players(room_code)
+                    player_info = next((p for p in players if p.seat_position == existing_seat), None)
 
-        # Check if player already in room BEFORE checking if room is full
-        # (player might be the 4th player who joined via REST API)
-        existing_seat = await self._find_player_seat(room_code, user_id)
-        if existing_seat is not None:
-            # Already in room, just update connection
-            await self._update_player_connection(
-                room_code, user_id, socket_id, existing_seat
+                    if player_info:
+                        # Update connection for this duplicate request
+                        await self._update_player_connection(
+                            room_code, user_id, socket_id, existing_seat
+                        )
+
+                        logger.info(
+                            "Duplicate join resolved for user %s in room %s (seat %d)",
+                            user_id,
+                            room_code,
+                            existing_seat,
+                        )
+
+                        return JoinRoomResult(
+                            game_id=room_data["game_id"],
+                            seat_position=existing_seat,
+                            is_admin=room_data["admin_id"] == user_id,
+                            players=players,
+                            player_info=player_info,
+                            phase=room_data["status"],
+                            current_round=None,
+                        )
+
+            # If still not joined after wait, this might be a legitimate concurrent request
+            # Fall through to normal join logic (lock will be retried)
+            logger.warning(
+                "Join lock held but player %s not found in room %s, proceeding with join",
+                user_id,
+                room_code,
             )
+
+        try:
+            # Check room exists
+            raw_room_data = await self.redis.hgetall(f"room:{room_code}")
+            if not raw_room_data:
+                raise NotFoundError("Room not found", ErrorCode.ROOM_NOT_FOUND)
+
+            # Normalize to string keys/values
+            room_data = _normalize_redis_hash(raw_room_data)
+
+            # Validate room data has required fields
+            required_keys = ["game_id", "admin_id", "status"]
+            missing_keys = [k for k in required_keys if k not in room_data]
+            if missing_keys:
+                logger.error(
+                    "Room %s missing required keys: %s. Room data: %s",
+                    room_code,
+                    missing_keys,
+                    room_data,
+                )
+                raise NotFoundError("Room data is corrupted", ErrorCode.ROOM_NOT_FOUND)
+
+            # Get players
             players = await self._get_room_players(room_code)
+
+            # Check if player already in room BEFORE checking if room is full
+            # (player might be the 4th player who joined via REST API)
+            existing_seat = await self._find_player_seat(room_code, user_id)
+            if existing_seat is not None:
+                # Already in room, just update connection
+                await self._update_player_connection(
+                    room_code, user_id, socket_id, existing_seat
+                )
+                players = await self._get_room_players(room_code)
+
+                # Find player info, or create it if missing (e.g., after quick leave/rejoin)
+                player_info = next((p for p in players if p.seat_position == existing_seat), None)
+                if player_info is None:
+                    # Player has a seat but isn't in players list - recreate their entry
+                    is_admin = room_data["admin_id"] == user_id
+                    player_info = PlayerInfo(
+                        user_id=user_id,
+                        display_name=display_name,
+                        seat_position=existing_seat,
+                        is_admin=is_admin,
+                        is_connected=True,
+                    )
+                    await self.redis.hset(
+                        f"room:{room_code}:players",
+                        str(existing_seat),
+                        player_info.model_dump_json(),
+                    )
+                    players = await self._get_room_players(room_code)
+
+                return JoinRoomResult(
+                    game_id=room_data["game_id"],
+                    seat_position=existing_seat,
+                    is_admin=room_data["admin_id"] == user_id,
+                    players=players,
+                    player_info=player_info,
+                    phase=room_data["status"],
+                    current_round=None,
+                )
+
+            # Now check if room is full (only for truly new players)
+            if len(players) >= 4:
+                raise NotFoundError("Room is full", ErrorCode.ROOM_FULL)
+
+            # New join - find available seat
+            occupied_seats = {p.seat_position for p in players}
+            available_seat = next(s for s in range(4) if s not in occupied_seats)
+
+            # Add player
+            is_admin = room_data["admin_id"] == user_id
+            player_info = PlayerInfo(
+                user_id=user_id,
+                display_name=display_name,
+                seat_position=available_seat,
+                is_admin=is_admin,
+                is_connected=True,
+            )
+
+            await self.redis.hset(
+                f"room:{room_code}:players",
+                str(available_seat),
+                player_info.model_dump_json(),
+            )
+
+            # Track socket connection
+            await self._track_connection(socket_id, user_id, room_code)
+            await self._refresh_room_ttl(room_code)
+
+            # Get updated player list
+            updated_players = await self._get_room_players(room_code)
+
             return JoinRoomResult(
                 game_id=room_data["game_id"],
-                seat_position=existing_seat,
-                is_admin=room_data["admin_id"] == user_id,
-                players=players,
-                player_info=next(p for p in players if p.seat_position == existing_seat),
+                seat_position=available_seat,
+                is_admin=is_admin,
+                players=updated_players,
+                player_info=player_info,
                 phase=room_data["status"],
                 current_round=None,
             )
-
-        # Now check if room is full (only for truly new players)
-        if len(players) >= 4:
-            raise NotFoundError("Room is full", ErrorCode.ROOM_FULL)
-
-        # New join - find available seat
-        occupied_seats = {p.seat_position for p in players}
-        available_seat = next(s for s in range(4) if s not in occupied_seats)
-
-        # Add player
-        is_admin = room_data["admin_id"] == user_id
-        player_info = PlayerInfo(
-            user_id=user_id,
-            display_name=display_name,
-            seat_position=available_seat,
-            is_admin=is_admin,
-            is_connected=True,
-        )
-
-        await self.redis.hset(
-            f"room:{room_code}:players",
-            str(available_seat),
-            player_info.model_dump_json(),
-        )
-
-        # Track socket connection
-        await self._track_connection(socket_id, user_id, room_code)
-        await self._refresh_room_ttl(room_code)
-
-        # Get updated player list
-        updated_players = await self._get_room_players(room_code)
-
-        return JoinRoomResult(
-            game_id=room_data["game_id"],
-            seat_position=available_seat,
-            is_admin=is_admin,
-            players=updated_players,
-            player_info=player_info,
-            phase=room_data["status"],
-            current_round=None,
-        )
+        finally:
+            # Release join lock if we acquired it
+            if lock_acquired:
+                await self.redis.delete(join_lock_key)
+                logger.debug("Released join lock for user %s in room %s", user_id, room_code)
 
     async def leave_room(
         self,
@@ -477,3 +567,27 @@ class RoomManager:
         admin_id = await self.redis.hget(f"room:{room_code}", "admin_id")
         # With decode_responses=True, admin_id is always a string (or None)
         return admin_id == user_id
+
+    async def get_socket_for_user(self, user_id: str) -> str | None:
+        """Get the socket ID for a user.
+
+        Args:
+            user_id: User ID to look up
+
+        Returns:
+            Socket ID if user is connected, None otherwise
+        """
+        socket_id = await self.redis.get(f"ws:user:{user_id}")
+        return socket_id
+
+    async def get_room_round_state(self, room_code: str) -> dict[str, str]:
+        """Get the round state from Redis.
+
+        Args:
+            room_code: Room code
+
+        Returns:
+            Round state as dict
+        """
+        raw_data = await self.redis.hgetall(f"room:{room_code}:round")
+        return _normalize_redis_hash(raw_data) if raw_data else {}

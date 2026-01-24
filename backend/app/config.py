@@ -34,7 +34,7 @@ class Settings(BaseSettings):
 
     # Redis
     redis_url: RedisDsn
-    redis_pool_size: int = 10
+    redis_pool_size: int = 200  # Increased for burst traffic during game start (4 players × multiple joins)
 
     # JWT
     jwt_secret_key: str
