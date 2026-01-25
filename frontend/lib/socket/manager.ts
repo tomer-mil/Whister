@@ -22,6 +22,26 @@ const WS_URL =
 
 const WS_PATH = '/ws/socket.io';
 
+/**
+ * Check if JWT token is expired
+ */
+function isTokenExpired(token: string): boolean {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3 || !parts[1]) {
+      return true; // Invalid token format
+    }
+    const payload = JSON.parse(atob(parts[1]));
+    const exp = payload.exp * 1000; // Convert to milliseconds
+    const now = Date.now();
+    // Consider token expired if it expires within next 60 seconds
+    return now >= exp - 60000;
+  } catch (error) {
+    console.error('[SocketManager] Failed to parse token:', error);
+    return true; // Treat as expired if we can't parse
+  }
+}
+
 class WebSocketManager {
   private socket: TypedSocket | null = null;
   private currentRoom: string | null = null;
@@ -35,6 +55,23 @@ class WebSocketManager {
     // Validate token before attempting connection
     if (!accessToken) {
       throw new Error('No access token provided');
+    }
+
+    // Check if token is expired and refresh if needed
+    if (isTokenExpired(accessToken)) {
+      console.log('[SocketManager] Token expired, refreshing...');
+      try {
+        await useStore.getState().refreshAuth();
+        // Get the new token after refresh
+        accessToken = useStore.getState().accessToken || '';
+        if (!accessToken || isTokenExpired(accessToken)) {
+          throw new Error('Failed to refresh token');
+        }
+        console.log('[SocketManager] Token refreshed successfully');
+      } catch (error) {
+        console.error('[SocketManager] Token refresh failed:', error);
+        throw new Error('Token expired and refresh failed');
+      }
     }
 
     // If already connected with valid socket, return it
@@ -65,8 +102,21 @@ class WebSocketManager {
         reconnectionDelayMax: 5000,
         reconnectionAttempts: 10,
         timeout: 10000,
-        auth: (cb) => {
-          const token = useStore.getState().accessToken || accessToken;
+        auth: async (cb) => {
+          let token = useStore.getState().accessToken || accessToken;
+
+          // Check if token is expired and refresh if needed
+          if (token && isTokenExpired(token)) {
+            console.log('[SocketManager] Token expired during reconnect, refreshing...');
+            try {
+              await useStore.getState().refreshAuth();
+              token = useStore.getState().accessToken || '';
+              console.log('[SocketManager] Token refreshed for reconnect');
+            } catch (error) {
+              console.error('[SocketManager] Failed to refresh token during reconnect:', error);
+            }
+          }
+
           if (!token) {
             console.error('[SocketManager] No token available for auth');
           }
