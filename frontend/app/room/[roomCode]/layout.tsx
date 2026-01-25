@@ -43,10 +43,16 @@ function RoomLayoutClient({
 }) {
   const [roomCode, setRoomCode] = React.useState<string | null>(null);
   const hasJoinedRef = React.useRef(false);
+  const roomCodeRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     params.then((p) => setRoomCode(p.roomCode));
   }, [params]);
+
+  // Track roomCode in ref for cleanup
+  React.useEffect(() => {
+    roomCodeRef.current = roomCode;
+  }, [roomCode]);
 
   // Initialize socket connection
   const { isConnected } = useSocket({ autoConnect: true });
@@ -75,16 +81,17 @@ function RoomLayoutClient({
       });
   }, [roomCode, isConnected, joinRoom, displayName]);
 
-  // Cleanup: Leave room on unmount only
+  // Cleanup: Leave room on unmount only (empty deps = only runs on mount/unmount)
   React.useEffect(() => {
     return () => {
-      if (hasJoinedRef.current && roomCode) {
-        console.log('[RoomLayout] Leaving room on unmount:', roomCode);
-        leaveRoom(roomCode);
+      if (hasJoinedRef.current && roomCodeRef.current) {
+        console.log('[RoomLayout] Leaving room on unmount:', roomCodeRef.current);
+        leaveRoom(roomCodeRef.current);
         hasJoinedRef.current = false;
       }
     };
-  }, [roomCode, leaveRoom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handle game started event - redirect to game page
   useSocketEvent('room:game_starting', (payload: GameStartingPayload) => {
