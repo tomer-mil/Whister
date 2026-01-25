@@ -1,13 +1,20 @@
 /**
  * useRoom Hook
  * Manages room state and WebSocket event subscriptions
+ *
+ * NOTE: This hook NO LONGER handles joining rooms.
+ * It only subscribes to room events.
+ * Use useRoomJoin to explicitly join/leave rooms.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useStore } from '@/stores';
-import { useSocket } from './use-socket';
+import { socketManager } from '@/lib/socket/manager';
 import { useSocketEvent } from './use-socket-event';
 import type {
+  TypedSocket,
+  ClientToServerEvents,
+  SocketResponse,
   RoomJoinedPayload,
   PlayerJoinedPayload,
   PlayerLeftPayload,
@@ -20,11 +27,40 @@ export interface UseRoomOptions {
 }
 
 /**
- * Hook for room management and WebSocket integration
+ * Hook for room event subscriptions
+ * Does NOT handle joining - use useRoomJoin for that
  */
 export function useRoom(options: UseRoomOptions = {}) {
-  const { roomCode } = options;
-  const { socket, emit } = useSocket({ autoConnect: true, roomCode });
+  const [socket, setSocket] = useState<TypedSocket | null>(null);
+
+  // Get socket from manager
+  useEffect(() => {
+    const sock = socketManager.getSocket();
+    setSocket(sock);
+  }, []);
+
+  // Type-safe emit function
+  const emit = useCallback(
+    async <K extends keyof ClientToServerEvents>(
+      event: K,
+      data: Parameters<ClientToServerEvents[K]>[0]
+    ): Promise<SocketResponse> => {
+      const sock = socketManager.getSocket();
+      if (!sock) {
+        return {
+          success: false,
+          error: 'Socket not connected',
+        };
+      }
+
+      return new Promise((resolve) => {
+        sock.emit(event as any, data, (response: SocketResponse) => {
+          resolve(response);
+        });
+      });
+    },
+    []
+  );
 
   // Store selectors and actions
   const {
@@ -57,6 +93,29 @@ export function useRoom(options: UseRoomOptions = {}) {
             isAdmin: p.is_admin,
           })),
         });
+
+        // If game is in progress (trump_bidding, contract_bidding, playing), populate game players
+        if (payload.phase && ['trump_bidding', 'contract_bidding', 'playing', 'frisch'].includes(payload.phase)) {
+          const store = useStore.getState();
+          store.setGameState({
+            gameId: payload.game_id,
+            currentRound: payload.current_round ?? 1,
+            gamePlayers: payload.players.map((p) => ({
+              userId: p.user_id,
+              displayName: p.display_name,
+              seatPosition: p.seat_position,
+              contractBid: null,
+              tricksWon: 0,
+              score: null,
+              isConnected: p.is_connected,
+            })),
+          });
+
+          // Set the bidding phase
+          if (payload.phase === 'trump_bidding' || payload.phase === 'frisch') {
+            store.setPhase(payload.phase as any);
+          }
+        }
       },
       [setRoomData]
     )

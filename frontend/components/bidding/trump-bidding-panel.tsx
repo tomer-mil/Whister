@@ -5,187 +5,103 @@
 
 'use client';
 
-import { useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useStore } from '@/stores';
+import { useBidding } from '@/hooks/use-bidding';
+import { BidHistoryTimeline } from './bid-history-timeline';
+import { ActiveBiddingControls } from './active-bidding-controls';
+import { WaitingForBidder } from './waiting-for-bidder';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { BidCounter } from './bid-counter';
-import { SuitSelector } from './suit-selector';
-import { PlayerBidStatus } from './player-bid-status';
-import { FrischIndicator } from './frisch-indicator';
-import { isValidTrumpBid } from '@/lib/validation/rules';
 import type { TrumpSuit } from '@/types/game';
 
 export interface TrumpBiddingPanelProps {
-  currentSuit: TrumpSuit | null;
-  currentHighestBid: number;
-  minimumBid: number;
-  isYourTurn: boolean;
-  frischRound?: number;
-  players: Array<{
-    playerId: string;
-    displayName: string;
-    seatPosition: number;
-    status: 'waiting' | 'current_turn' | 'passed' | 'bid';
-    bid?: number;
-  }>;
-  currentTurnPlayerId?: string;
-  onBid: (amount: number, suit: TrumpSuit) => Promise<void>;
-  onPass: () => Promise<void>;
-  isLoading?: boolean;
-  error?: string;
+  roomCode: string;
 }
 
-export function TrumpBiddingPanel({
-  currentSuit,
-  currentHighestBid,
-  minimumBid,
-  isYourTurn,
-  frischRound = 0,
-  players,
-  currentTurnPlayerId,
-  onBid,
-  onPass,
-  isLoading = false,
-  error,
-}: TrumpBiddingPanelProps) {
-  const [selectedBid, setSelectedBid] = useState(Math.max(currentHighestBid + 1, minimumBid));
-  const [selectedSuit, setSelectedSuit] = useState<TrumpSuit | null>(null);
+export function TrumpBiddingPanel({ roomCode }: TrumpBiddingPanelProps) {
+  // Get bidding state from store
+  const trumpBids = useStore((state) => state.trumpBids);
+  const highestTrumpBid = useStore((state) => state.highestTrumpBid);
+  const minimumBid = useStore((state) => state.minimumBid);
+  const frischCount = useStore((state) => state.frischCount);
+  const isMyTurn = useStore((state) => state.isMyTurn);
+  const currentTurnPlayerId = useStore((state) => state.currentTurnPlayerId);
+  const isSubmitting = useStore((state) => state.isSubmitting);
+  const phase = useStore((state) => state.phase);
 
-  const isValidBid = useCallback(() => {
-    return (
-      selectedSuit !== null &&
-      isValidTrumpBid(selectedBid, currentHighestBid, minimumBid)
-    );
-  }, [selectedBid, selectedSuit, currentHighestBid, minimumBid]);
+  // Get room players to map IDs to names
+  const roomPlayers = useStore((state) => state.gamePlayers);
 
-  const handleBid = useCallback(async () => {
-    if (!isValidBid() || !selectedSuit || isLoading) return;
+  // Get bidding actions
+  const { bidTrump, passRound } = useBidding({ roomCode });
+
+  // Find current bidder name
+  const currentBidder = roomPlayers.find(p => p.userId === currentTurnPlayerId);
+  const currentBidderName = currentBidder?.displayName || 'Unknown';
+
+  // Handle bid placement
+  const handleBid = async (amount: number, suit: TrumpSuit) => {
     try {
-      await onBid(selectedBid, selectedSuit);
-    } catch (err) {
-      // Error is passed via error prop
+      await bidTrump(amount, suit);
+    } catch (error) {
+      console.error('Failed to place bid:', error);
+      throw error;
     }
-  }, [isValidBid, selectedBid, selectedSuit, onBid, isLoading]);
+  };
 
-  const handlePass = useCallback(async () => {
-    if (isLoading) return;
+  // Handle pass
+  const handlePass = async () => {
     try {
-      await onPass();
-    } catch (err) {
-      // Error is passed via error prop
+      await passRound();
+    } catch (error) {
+      console.error('Failed to pass:', error);
+      throw error;
     }
-  }, [onPass, isLoading]);
+  };
+
+  // Don't show panel if not in trump bidding phase
+  if (phase !== 'trump_bidding' && phase !== 'frisch') {
+    return null;
+  }
 
   return (
     <div className="space-y-4">
-      {/* Current highest bid display */}
-      <Card variant="elevated" className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50">
-        <div className="text-center">
-          <p className="text-sm text-gray-600 mb-2">Current Highest Bid</p>
-          <motion.div
-            key={currentHighestBid}
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            className="flex items-center justify-center gap-3"
-          >
-            <span className="text-4xl font-bold text-gray-900">{currentHighestBid}</span>
-            {currentSuit && (
-              <span className="text-3xl">{getSuitSymbol(currentSuit)}</span>
-            )}
-          </motion.div>
-        </div>
-      </Card>
-
-      {/* Your bid selection */}
-      {isYourTurn && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-4"
-        >
-          {/* Error message */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded px-3 py-2">
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
-          )}
-
-          {/* Bid counter */}
-          <div className="flex justify-center">
-            <BidCounter
-              value={selectedBid}
-              min={Math.max(5, minimumBid)}
-              max={13}
-              onChange={setSelectedBid}
-              disabled={isLoading}
-              label="Your Bid"
-            />
-          </div>
-
-          {/* Suit selector */}
-          <div className="flex justify-center">
-            <SuitSelector
-              value={selectedSuit}
-              onChange={setSelectedSuit}
-              disabled={isLoading}
-              label="Trump Suit"
-            />
-          </div>
-
-          {/* Frisch indicator if applicable */}
-          {frischRound > 0 && (
-            <FrischIndicator frischRound={frischRound} minimumBid={minimumBid} />
-          )}
-
-          {/* Action buttons */}
-          <div className="flex gap-3 justify-center">
-            <Button
-              variant="primary"
-              onClick={handleBid}
-              disabled={!isValidBid() || isLoading}
-              className="min-w-24"
-            >
-              {isLoading ? 'Bidding...' : 'Call'}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={handlePass}
-              disabled={isLoading}
-              className="min-w-24"
-            >
-              {isLoading ? 'Passing...' : 'Pass'}
-            </Button>
-          </div>
-        </motion.div>
+      {/* Frisch indicator */}
+      {frischCount > 0 && (
+        <Card variant="outlined" className="p-3 bg-amber-50 border-amber-300">
+          <p className="text-sm text-amber-900 text-center font-medium">
+            🔄 Frisch Round {frischCount} - Minimum bid raised to {minimumBid}
+          </p>
+        </Card>
       )}
 
-      {!isYourTurn && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="bg-gray-50 rounded-lg p-4 text-center"
-        >
-          <p className="text-sm text-gray-600">Waiting for another player's bid...</p>
-        </motion.div>
-      )}
+      {/* Bid History Timeline - always visible */}
+      <BidHistoryTimeline
+        bids={trumpBids}
+        highestBid={highestTrumpBid}
+      />
 
-      {/* Player bid status */}
-      <PlayerBidStatus players={players} currentTurnPlayerId={currentTurnPlayerId} />
+      {/* Conditional: Active controls OR waiting view */}
+      {isMyTurn ? (
+        <ActiveBiddingControls
+          minimumBid={minimumBid}
+          currentHighestBid={highestTrumpBid?.amount || null}
+          currentHighestSuit={highestTrumpBid?.suit || null}
+          onBid={handleBid}
+          onPass={handlePass}
+          isLoading={isSubmitting}
+        />
+      ) : (
+        <>
+          <WaitingForBidder
+            currentBidderName={currentBidderName}
+            currentHighestBid={highestTrumpBid?.amount || null}
+            currentHighestSuit={highestTrumpBid?.suit || null}
+            currentHighestBidderName={highestTrumpBid?.playerName || null}
+          />
+        </>
+      )}
     </div>
   );
-}
-
-function getSuitSymbol(suit: TrumpSuit): string {
-  const symbols: Record<TrumpSuit, string> = {
-    clubs: '♣',
-    diamonds: '♦',
-    hearts: '♥',
-    spades: '♠',
-    no_trump: 'NT',
-  };
-  return symbols[suit] || '';
 }
 
 export default TrumpBiddingPanel;

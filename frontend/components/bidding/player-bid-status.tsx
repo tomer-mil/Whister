@@ -69,7 +69,7 @@ export function PlayerBidStatus({ players, currentTurnPlayerId }: PlayerBidStatu
                       <p className="text-sm font-medium text-gray-900 truncate">
                         {player.displayName}
                       </p>
-                      <p className="text-xs text-gray-500">Seat {player.seatPosition}</p>
+                      <p className="text-xs text-gray-500">Seat {player.seatPosition + 1}</p>
                     </div>
                   </div>
 

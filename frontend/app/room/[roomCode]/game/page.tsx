@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { useStore } from '@/stores';
 import { useBidding } from '@/hooks/use-bidding';
 import { GameHeader } from '@/components/game/game-header';
-import { TrumpBiddingPanel } from '@/components/bidding/trump-bidding-panel';
+// import { TrumpBiddingPanel } from '@/components/bidding/trump-bidding-panel';
 import { ContractBiddingPanel } from '@/components/bidding/contract-bidding-panel';
 import { Card } from '@/components/ui/card';
 
@@ -18,6 +18,7 @@ export default function GamePage() {
   const [isLoading, setIsLoading] = useState(false);
 
   // Get game state
+  const roomCode = useStore((state) => state.roomCode);
   const phase = useStore((state) => state.phase);
   const roundNumber = useStore((state) => state.currentRound);
   const totalRounds = useStore((state) => state.totalRounds);
@@ -27,13 +28,9 @@ export default function GamePage() {
 
   // Get bidding state
   const currentTurnPlayerId = useStore((state) => state.currentTurnPlayerId);
-  const highestTrumpBid = useStore((state) => state.highestTrumpBid);
-  const minimumBid = useStore((state) => state.minimumBid);
-  const frischCount = useStore((state) => state.frischCount);
   const trumpWinnerId = useStore((state) => state.trumpWinnerId);
   const trumpWinningBid = useStore((state) => state.trumpWinningBid);
   const contractSum = useStore((state) => state.contractSum);
-  const trumpBids = useStore((state) => state.trumpBids);
   const contracts = useStore((state) => state.contracts);
   const roomPlayers = useStore((state) => state.players);
 
@@ -41,33 +38,7 @@ export default function GamePage() {
   const isLastBidder = false; // TODO: Calculate based on round and bidding status
 
   // Initialize bidding hook
-  const { bidTrump, passRound, bidContract } = useBidding({ roomCode: '' });
-
-  // Handle bid actions
-  const handleTrumpBid = async (amount: number, suit: string): Promise<void> => {
-    setError(null);
-    setIsLoading(true);
-    try {
-      // @ts-expect-error - suit will be TrumpSuit
-      await bidTrump(amount, suit);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to place bid');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handlePass = async () => {
-    setError(null);
-    setIsLoading(true);
-    try {
-      await passRound();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to pass');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { bidContract } = useBidding({ roomCode: roomCode ?? '' });
 
   const handleContractBid = async (amount: number) => {
     setError(null);
@@ -80,18 +51,6 @@ export default function GamePage() {
       setIsLoading(false);
     }
   };
-
-  // Transform player bids for display
-  const playerBidsDisplay = roomPlayers.map((player) => {
-    const status = currentTurnPlayerId === player.userId ? 'current_turn' : 'waiting';
-    return {
-      playerId: player.userId,
-      displayName: player.displayName,
-      seatPosition: player.seatPosition ?? 0,
-      status: status as 'current_turn' | 'waiting',
-      bid: trumpBids.find((b) => b.playerId === player.userId)?.amount,
-    };
-  });
 
   const contractBidsDisplay = roomPlayers.map((player) => {
     const status = currentTurnPlayerId === player.userId ? 'current_turn' : 'bid';
@@ -119,20 +78,16 @@ export default function GamePage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main bidding panel */}
           <div className="lg:col-span-2">
-            {phase === 'trump_bidding' && (
-              <TrumpBiddingPanel
-                currentSuit={highestTrumpBid?.suit ?? null}
-                currentHighestBid={highestTrumpBid?.amount ?? 0}
-                minimumBid={minimumBid}
-                isYourTurn={isYourTurn}
-                frischRound={frischCount}
-                players={playerBidsDisplay}
-                currentTurnPlayerId={currentTurnPlayerId ? currentTurnPlayerId : undefined}
-                onBid={handleTrumpBid}
-                onPass={handlePass}
-                isLoading={isLoading}
-                error={error || undefined}
-              />
+            {phase === 'trump_bidding' && roomCode && (
+              <Card variant="elevated" className="p-6 text-center">
+                <h2 className="text-xl font-bold mb-2">Trump Bidding Phase</h2>
+                <p className="text-muted-foreground">
+                  Bidding UI coming soon... (Phase 2 refactor in progress)
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Room: {roomCode} | Phase: {phase}
+                </p>
+              </Card>
             )}
 
             {phase === 'contract_bidding' && trumpSuit && (

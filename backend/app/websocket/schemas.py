@@ -199,6 +199,7 @@ class WSErrorCode(str, Enum):
     INVALID_GAME_PHASE = "WS_GAME_001"
     NOT_YOUR_TURN = "WS_GAME_002"
     GAME_NOT_STARTED = "WS_GAME_003"
+    GAME_ALREADY_STARTED = "WS_GAME_004"
 
     # Validation errors
     INVALID_PAYLOAD = "WS_VAL_001"
@@ -294,7 +295,13 @@ class BidFrischStartedPayload(TimestampedPayload):
 
     frisch_number: int = Field(ge=1, le=3)
     new_minimum_bid: int
+    first_bidder_id: str | None = None
+    first_bidder_name: str | None = None
     message: str = "Frisch triggered - cards will be exchanged"
+
+
+# Aliases for backwards compatibility
+FrischStartedPayload = BidFrischStartedPayload
 
 
 class ContractInfo(BaseModel):
@@ -311,9 +318,32 @@ class BidContractsSetPayload(TimestampedPayload):
 
     contracts: list[ContractInfo]
     total_contracts: int
-    game_type: GameType
-    first_player_id: str
-    first_player_name: str
+    game_type: str  # "over" or "under"
+    first_player_id: str | None = None
+
+
+# Aliases for backwards compatibility
+ContractsSetPayload = BidContractsSetPayload
+TrumpSetPayload = BidTrumpSetPayload
+
+
+class YourTurnPayload(TimestampedPayload):
+    """Flexible payload for bid:your_turn event.
+
+    Used to notify a player it's their turn to bid.
+    Fields vary based on the phase.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    phase: str
+    minimum_bid: int | None = None
+    current_highest_bid: int | None = None
+    current_highest_suit: str | None = None
+    is_last_bidder: bool = False
+    is_trump_winner: bool = False
+    trump_winning_bid: int | None = None
+    current_contract_sum: int | None = None
 
 
 class BidPhaseYourTurnPayload(TimestampedPayload):
@@ -380,14 +410,26 @@ class CumulativeScoreInfo(BaseModel):
     position: int = Field(ge=1, le=4)
 
 
+class PlayerRoundResult(BaseModel):
+    """Player result for a completed round."""
+
+    player_id: str
+    player_name: str
+    seat_position: int
+    contract: int
+    tricks_won: int
+    round_score: int
+    made_contract: bool
+
+
 class RoundCompletePayload(TimestampedPayload):
     """Payload for round:complete event (broadcast)."""
 
     round_number: int
-    trump_suit: TrumpSuit
-    game_type: GameType
-    players: list[ContractInfo]  # Includes tricks won and scores
-    cumulative_scores: list[CumulativeScoreInfo]
+    trump_suit: str
+    game_type: str  # "over" or "under"
+    players: list[PlayerRoundResult | dict]  # Results for each player
+    cumulative_scores: list[CumulativeScoreInfo] | None = None
 
 
 class ErrorPayload(TimestampedPayload):
@@ -436,7 +478,8 @@ class ServerEvents:
     ROOM_GAME_STARTING: str = "room:game_starting"
 
     # Bidding events
-    BID_YOUR_TURN: str = "bid:your_turn"
+    YOUR_TURN: str = "bid:your_turn"
+    BID_YOUR_TURN: str = "bid:your_turn"  # Alias
     BID_PLACED: str = "bid:placed"
     BID_PASSED: str = "bid:passed"
     BID_TRUMP_SET: str = "bid:trump_set"

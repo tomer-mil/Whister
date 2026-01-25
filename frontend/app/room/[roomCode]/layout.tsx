@@ -7,6 +7,9 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
+import { useStore } from '@/stores';
+import { useSocket } from '@/hooks/use-socket';
+import { useRoomJoin } from '@/hooks/use-room-join';
 import { useRoom } from '@/hooks/use-room';
 import { useSocketEvent } from '@/hooks/use-socket-event';
 import type { GameStartingPayload } from '@/types/socket-events';
@@ -39,13 +42,47 @@ function RoomLayoutClient({
   onGameStarting: (gameId: string) => void;
 }) {
   const [roomCode, setRoomCode] = React.useState<string | null>(null);
+  const [hasJoined, setHasJoined] = React.useState(false);
 
   React.useEffect(() => {
     params.then((p) => setRoomCode(p.roomCode));
   }, [params]);
 
-  // Initialize room connection - always call hook, pass roomCode only when available
+  // Initialize socket connection
+  useSocket({ autoConnect: true });
+
+  // Get join function and display name
+  const { joinRoom, leaveRoom } = useRoomJoin();
+  const displayName = useStore((state) => state.user?.displayName || 'Player');
+
+  // Subscribe to room events (doesn't auto-join)
   useRoom({ roomCode: roomCode ?? undefined });
+
+  // Explicitly join room when roomCode is available
+  React.useEffect(() => {
+    if (!roomCode || hasJoined) {
+      return;
+    }
+
+    console.log('[RoomLayout] Joining room:', roomCode);
+    joinRoom(roomCode, displayName)
+      .then(() => {
+        console.log('[RoomLayout] Successfully joined room');
+        setHasJoined(true);
+      })
+      .catch((error) => {
+        console.error('[RoomLayout] Failed to join room:', error);
+      });
+
+    // Cleanup: Leave room on unmount
+    return () => {
+      if (hasJoined) {
+        console.log('[RoomLayout] Leaving room on unmount:', roomCode);
+        leaveRoom(roomCode);
+        setHasJoined(false);
+      }
+    };
+  }, [roomCode, hasJoined, joinRoom, leaveRoom, displayName]);
 
   // Handle game started event - redirect to game page
   useSocketEvent('room:game_starting', (payload: GameStartingPayload) => {

@@ -4,6 +4,7 @@
  */
 
 import type { TrumpSuit, GameStatus, GameType, RoundPhase } from './game';
+import type { ConnectionState } from '@/stores/slices/connection-slice';
 
 // ============================================================
 // Auth Slice Types
@@ -83,6 +84,16 @@ export interface GamePlayer {
   isConnected: boolean;
 }
 
+export interface PlayerRoundResult {
+  player_id: string;
+  player_name: string;
+  seat_position: number;
+  contract: number;
+  tricks_won: number;
+  round_score: number;
+  made_contract: boolean;
+}
+
 export interface GameState {
   gameId: string | null;
   status: GameStatus;
@@ -90,6 +101,10 @@ export interface GameState {
   totalRounds: number;
   gamePlayers: GamePlayer[];
   myPlayerId: string | null;
+  // Playing phase state
+  totalTricksPlayed: number;
+  playerTricks: Record<string, number>;
+  roundResults: PlayerRoundResult[] | null;
 }
 
 export interface GameActions {
@@ -97,6 +112,10 @@ export interface GameActions {
   setGameState: (state: Partial<GameState>) => void;
   updatePlayer: (playerId: string, data: Partial<GamePlayer>) => void;
   resetGame: () => void;
+  // Playing phase actions
+  updatePlayerTricks: (playerId: string, tricksWon: number) => void;
+  incrementTotalTricks: () => void;
+  setRoundResults: (results: PlayerRoundResult[]) => void;
 }
 
 // ============================================================
@@ -107,7 +126,8 @@ export interface TrumpBid {
   playerId: string;
   playerName: string;
   amount: number;
-  suit: TrumpSuit;
+  suit: TrumpSuit | null;
+  isPass: boolean;
   timestamp: string;
 }
 
@@ -124,16 +144,18 @@ export interface BiddingState {
   currentTurnPlayerId: string | null;
 
   // Trump bidding
-  trumpBids: TrumpBid[];
-  highestTrumpBid: TrumpBid | null;
+  trumpBids: TrumpBid[]; // Chronological history of ALL bids and passes
+  highestTrumpBid: TrumpBid | null; // Current winning bid
+  passedPlayers: Set<string>; // Set of player IDs who have passed
   minimumBid: number;
-  consecutivePasses: number;
+  consecutivePasses: number; // Deprecated, kept for compatibility
   frischCount: number;
 
   // Contract bidding
   contracts: ContractBid[];
   contractSum: number;
   trumpWinnerId: string | null;
+  trumpWinnerName: string | null;
   trumpWinningBid: number | null;
   trumpSuit: TrumpSuit | null;
   gameType: GameType | null;
@@ -151,7 +173,8 @@ export interface BiddingActions {
   setPhase: (phase: RoundPhase) => void;
   setTrumpBids: (bids: TrumpBid[]) => void;
   addTrumpBid: (bid: TrumpBid) => void;
-  setTrumpResult: (winnerId: string, bid: number, suit: TrumpSuit) => void;
+  addPass: (playerId: string, playerName: string) => void;
+  setTrumpResult: (winnerId: string, winnerName: string, bid: number, suit: TrumpSuit) => void;
   setFrisch: (frischCount: number, minimumBid: number) => void;
   setContracts: (contracts: ContractBid[]) => void;
   addContract: (contract: ContractBid) => void;
@@ -245,7 +268,8 @@ export type StoreState =
   & GameState
   & BiddingState
   & ScoresState
-  & UIState;
+  & UIState
+  & ConnectionState;
 
 export type StoreActions =
   & AuthActions

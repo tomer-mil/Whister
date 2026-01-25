@@ -1,10 +1,13 @@
 /**
  * useSocket Hook
- * Manages Socket.IO connection lifecycle and provides typed event emission
+ * Manages Socket.IO connection lifecycle (read-only)
+ *
+ * NOTE: This hook NO LONGER handles room joining.
+ * Use useRoomJoin hook for explicit room management.
  */
 
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { initSocket, disconnectSocket, isSocketConnected } from '@/lib/socket/client';
+import { useEffect, useState, useCallback } from 'react';
+import { socketManager } from '@/lib/socket/manager';
 import { useStore } from '@/stores';
 import type {
   TypedSocket,
@@ -14,7 +17,6 @@ import type {
 
 export interface UseSocketOptions {
   autoConnect?: boolean;
-  roomCode?: string;
 }
 
 export interface UseSocketReturn {
@@ -29,12 +31,17 @@ export interface UseSocketReturn {
 
 /**
  * Hook for Socket.IO connection management
+ * Read-only - exposes socket and connection state
+ * Does NOT handle room joining (use useRoomJoin for that)
  */
 export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
-  const { autoConnect = true, roomCode } = options;
+  const { autoConnect = true } = options;
   const [socket, setSocket] = useState<TypedSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const socketRef = useRef<TypedSocket | null>(null);
+
+  // Wait for auth hydration
+  const isHydrated = useStore((state) => state.isHydrated);
+  const accessToken = useStore((state) => state.accessToken);
 
   // Initialize socket connection
   useEffect(() => {
@@ -42,61 +49,49 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
       return;
     }
 
-    // Get access token
-    const accessToken =
-      typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-
-    if (!accessToken) {
-      console.warn('[useSocket] No access token found');
+    // Wait for auth to hydrate from localStorage
+    if (!isHydrated) {
+      console.log('[useSocket] Waiting for auth hydration...');
       return;
     }
 
-    try {
-      const socketInstance = initSocket({ accessToken });
-      socketRef.current = socketInstance;
-      setSocket(socketInstance);
+    // Check for access token
+    if (!accessToken) {
+      console.warn('[useSocket] No access token found after hydration');
+      return;
+    }
 
-      const handleConnect = () => setIsConnected(true);
-      const handleDisconnect = () => setIsConnected(false);
+    console.log('[useSocket] Connecting with token...');
 
-      socketInstance.on('connect', handleConnect);
-      socketInstance.on('disconnect', handleDisconnect);
+    // Connect via manager
+    socketManager.connect(accessToken).then((sock) => {
+      setSocket(sock);
+      setIsConnected(true);
+      console.log('[useSocket] Connected successfully');
+    }).catch((error) => {
+      console.error('[useSocket] Failed to connect:', error);
+    });
 
-      // If already connected, set state
-      if (isSocketConnected()) {
+    // Set up connection state listeners
+    const currentSocket = socketManager.getSocket();
+    if (currentSocket) {
+      const handleConnect = () => {
         setIsConnected(true);
-      }
+        setSocket(socketManager.getSocket());
+      };
+      const handleDisconnect = () => {
+        setIsConnected(false);
+      };
+
+      currentSocket.on('connect', handleConnect);
+      currentSocket.on('disconnect', handleDisconnect);
 
       return () => {
-        socketInstance.off('connect', handleConnect);
-        socketInstance.off('disconnect', handleDisconnect);
+        currentSocket.off('connect', handleConnect);
+        currentSocket.off('disconnect', handleDisconnect);
       };
-    } catch (error) {
-      console.error('[useSocket] Failed to initialize socket:', error);
-      return undefined;
     }
-  }, [autoConnect]);
-
-  // Get user's display name from store
-  const displayName = useStore((state) => state.user?.displayName);
-
-  // Join room if roomCode provided
-  useEffect(() => {
-    if (!socket || !roomCode || !isConnected) {
-      return;
-    }
-
-    // Emit room:join event - the server will respond with room:joined event
-    // which is handled by useRoom hook
-    console.log('[useSocket] Joining room:', roomCode, 'as', displayName);
-    socket.emit('room:join', { room_code: roomCode, display_name: displayName });
-
-    // Cleanup: Leave room on unmount
-    return () => {
-      console.log('[useSocket] Leaving room:', roomCode);
-      socket.emit('room:leave', { room_code: roomCode });
-    };
-  }, [socket, roomCode, isConnected, displayName]);
+  }, [autoConnect, isHydrated, accessToken]);
 
   // Type-safe event emission
   const emit = useCallback(
@@ -122,13 +117,10 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
 
   // Disconnect socket
   const disconnect = useCallback(() => {
-    if (socket) {
-      disconnectSocket();
-      socketRef.current = null;
-      setSocket(null);
-      setIsConnected(false);
-    }
-  }, [socket]);
+    socketManager.disconnect();
+    setSocket(null);
+    setIsConnected(false);
+  }, []);
 
   return {
     socket,

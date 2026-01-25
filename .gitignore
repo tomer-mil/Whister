@@ -9,6 +9,9 @@ __pycache__/
 # Claude
 .claude/
 
+# Codex
+.codex/
+
 # Distribution / packaging
 .Python
 build/

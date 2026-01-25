@@ -7,6 +7,7 @@ import { createGameSlice } from './slices/game-slice';
 import { createBiddingSlice } from './slices/bidding-slice';
 import { createScoresSlice } from './slices/scores-slice';
 import { createUISlice } from './slices/ui-slice';
+import { createConnectionSlice } from './slices/connection-slice';
 import { persistConfig } from './middleware/persist';
 import { devtoolsConfig } from './middleware/devtools';
 
@@ -24,6 +25,7 @@ const stateCreator = ((set: any, get: any) => ({
   ...createBiddingSlice(set, get),
   ...createScoresSlice(set, get),
   ...createUISlice(set, get),
+  ...createConnectionSlice(set, get),
 })) as any;
 
 console.log('[Store] Creating Zustand store...');

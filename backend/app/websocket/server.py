@@ -26,7 +26,20 @@ logger = logging.getLogger(__name__)
 
 # Store connection contexts by socket ID
 # (sio.rooms is a method, not a dict, so we use our own storage)
+# This is exported for use by other modules (e.g., game_events.py)
 _connection_contexts: dict[str, ConnectionContext] = {}
+
+
+def get_connection_context(sid: str) -> ConnectionContext | None:
+    """Get connection context for a socket ID.
+
+    Args:
+        sid: Socket ID
+
+    Returns:
+        ConnectionContext if found, None otherwise
+    """
+    return _connection_contexts.get(sid)
 
 
 def create_socketio_server(redis: Any) -> "socketio.AsyncServer":  # type: ignore
@@ -226,6 +239,45 @@ def register_socketio_handlers(  # noqa: C901
                     current_round=join_result.current_round,
                 )
                 await ctx.emit(ServerEvents.ROOM_JOINED, joined_payload.to_dict())
+
+                # Check if it's this player's turn to bid
+                try:
+                    if join_result.phase in ["trump_bidding", "contract_bidding"]:
+                        from app.websocket.game_events import emit_your_turn
+                        round_key = f"room:{payload.room_code}:round"
+                        round_data = await room_manager.redis.hgetall(round_key)
+
+                        if round_data:
+                            current_bidder_id = round_data.get("current_bidder_id")
+                            if current_bidder_id == ctx.user_id:
+                                # It's this player's turn - emit bid:your_turn
+                                phase_value = round_data.get("phase", "trump_bidding")
+                                minimum_bid = int(round_data.get("minimum_bid", 5))
+
+                                # Get highest bid for trump bidding
+                                highest_bid_json = round_data.get("highest_bid")
+                                current_highest_bid = None
+                                current_highest_suit = None
+
+                                if highest_bid_json:
+                                    import json
+                                    bid_data = json.loads(highest_bid_json)
+                                    current_highest_bid = bid_data.get("amount")
+                                    current_highest_suit = bid_data.get("suit")
+
+                                await emit_your_turn(
+                                    sio,
+                                    room_manager,
+                                    ctx.user_id,
+                                    phase=phase_value,
+                                    minimum_bid=minimum_bid,
+                                    current_highest_bid=current_highest_bid,
+                                    current_highest_suit=current_highest_suit,
+                                    is_last_bidder=False,
+                                )
+                                logger.info("Emitted bid:your_turn to %s upon joining", ctx.user_id)
+                except Exception as e:
+                    logger.exception("Error emitting bid:your_turn on join: %s", e)
 
                 # Broadcast to room
                 player_joined_payload = RoomPlayerJoinedPayload(

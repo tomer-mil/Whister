@@ -8,6 +8,7 @@ import { useSocket } from './use-socket';
 import { useStore } from '@/stores';
 import type {
   RoundTrickWonPayload,
+  RoundTrickUndonePayload,
   RoundCompletePayload,
 } from '@/types/socket-events';
 
@@ -20,12 +21,16 @@ export interface UseGameOptions {
  */
 export function useGame(options: UseGameOptions) {
   const { roomCode } = options;
-  const { socket, emit } = useSocket({ autoConnect: true, roomCode });
+  const { socket, emit } = useSocket({ autoConnect: true });
 
-  // Get game state from store
+  // Get game state and actions from store
   const updatePlayer = useStore((state) => state.updatePlayer);
   const addRoundScore = useStore((state) => state.addRoundScore);
   const setGameState = useStore((state) => state.setGameState);
+  const updatePlayerTricks = useStore((state) => state.updatePlayerTricks);
+  // const incrementTotalTricks = useStore((state) => state.incrementTotalTricks);
+  const setRoundResults = useStore((state) => state.setRoundResults);
+  const setPhase = useStore((state) => state.setPhase);
 
   // Claim a trick - uses backend event name round:claim_trick
   const claimTrick = useCallback(async () => {
@@ -52,6 +57,26 @@ export function useGame(options: UseGameOptions) {
 
     // Trick won - backend sends round:trick_won
     socket.on('round:trick_won', (payload: RoundTrickWonPayload) => {
+      // Update player tricks in game state
+      updatePlayerTricks(payload.player_id, payload.new_trick_count);
+
+      // Update game state with new total tricks
+      setGameState({
+        totalTricksPlayed: payload.total_tricks_played,
+      });
+
+      // Also update game player for backwards compatibility
+      updatePlayer(payload.player_id, {
+        tricksWon: payload.new_trick_count,
+      });
+    });
+
+    // Trick undone - backend sends round:trick_undone
+    socket.on('round:trick_undone', (payload: RoundTrickUndonePayload) => {
+      updatePlayerTricks(payload.player_id, payload.new_trick_count);
+      setGameState({
+        totalTricksPlayed: payload.total_tricks_played,
+      });
       updatePlayer(payload.player_id, {
         tricksWon: payload.new_trick_count,
       });
@@ -59,26 +84,38 @@ export function useGame(options: UseGameOptions) {
 
     // Round complete with results - backend sends round:complete
     socket.on('round:complete', (payload: RoundCompletePayload) => {
-      // Map cumulative_scores to player scores format
-      const roundScore = payload.cumulative_scores.map((score) => ({
-        playerId: score.player_id,
-        displayName: score.player_name,
-        seatPosition: payload.players.find((p) => p.player_id === score.player_id)?.seat_position ?? 0,
-        contractBid: payload.players.find((p) => p.player_id === score.player_id)?.amount ?? 0,
-        tricksWon: 0, // Not provided in backend payload - would need to track separately
-        score: score.round_score,
-        madeContract: true, // Not provided in backend payload
-        cumulativeScore: score.total_score,
-      }));
+      // Store round results for the modal
+      // TODO: Backend needs to send full PlayerRoundResult[] with tricks_won, round_score, made_contract
+      setRoundResults(payload.players as any);
 
-      addRoundScore({
-        roundNumber: payload.round_number,
-        trumpSuit: payload.trump_suit,
-        gameType: payload.game_type,
-        trumpWinnerId: '', // Will be populated from game state
-        playerScores: roundScore,
-        commentary: [], // Backend doesn't send commentary
-      });
+      // Update phase to complete
+      setPhase('complete');
+
+      // Map results to scores format for scores slice
+      if (payload.cumulative_scores) {
+        const roundScore = payload.cumulative_scores.map((score) => {
+          const playerResult = payload.players.find((p) => p.player_id === score.player_id);
+          return {
+            playerId: score.player_id,
+            displayName: score.player_name,
+            seatPosition: playerResult?.seat_position ?? 0,
+            contractBid: playerResult?.contract ?? 0,
+            tricksWon: playerResult?.tricks_won ?? 0,
+            score: score.round_score,
+            madeContract: playerResult?.made_contract ?? false,
+            cumulativeScore: score.total_score,
+          };
+        });
+
+        addRoundScore({
+          roundNumber: payload.round_number,
+          trumpSuit: payload.trump_suit as any,
+          gameType: payload.game_type as any,
+          trumpWinnerId: '', // Will be populated from game state
+          playerScores: roundScore,
+          commentary: [], // Backend doesn't send commentary
+        });
+      }
 
       setGameState({
         status: 'round_complete' as any,
@@ -87,9 +124,10 @@ export function useGame(options: UseGameOptions) {
 
     return () => {
       socket.off('round:trick_won');
+      socket.off('round:trick_undone');
       socket.off('round:complete');
     };
-  }, [socket, updatePlayer, addRoundScore, setGameState]);
+  }, [socket, updatePlayer, addRoundScore, setGameState, updatePlayerTricks, setRoundResults, setPhase]);
 
   return {
     socket,

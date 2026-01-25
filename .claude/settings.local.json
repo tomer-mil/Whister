@@ -42,7 +42,10 @@
       "Bash(docker-compose restart:*)",
       "Bash(python3:*)",
       "Bash(docker-compose:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(docker volume:*)",
+      "Bash(pg_isready:*)",
+      "Bash(python -m py_compile:*)"
     ],
     "additionalDirectories": [
       "/Users/tomer.mildworth/personal/Whister/frontend-app/{app,components/{ui,layout,room,bidding,game,scores,shared},hooks,lib/{socket,api,validation,utils},stores/slices"

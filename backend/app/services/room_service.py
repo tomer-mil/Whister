@@ -14,7 +14,8 @@ from app.core.exceptions import (
     ValidationError,
 )
 from app.models import Game, GamePlayer, Group, User
-from app.models.base import GameStatus
+from app.models.base import GameStatus, RoundPhase
+from app.models.round import Round, RoundPlayer
 from app.schemas.errors import ErrorCode
 from app.schemas.room import (
     CreateRoomRequest,
@@ -447,15 +448,17 @@ class RoomService:
 
         game_id = UUID(room_data["game_id"])
 
-        # Get players and validate count
+        # Get all players ordered by seat
         result = await self.db.execute(
-            select(func.count(GamePlayer.id)).where(GamePlayer.game_id == game_id)
+            select(GamePlayer)
+            .where(GamePlayer.game_id == game_id)
+            .order_by(GamePlayer.seat_position)
         )
-        player_count = result.scalar() or 0
+        game_players = list(result.scalars().all())
 
-        if player_count != 4:
+        if len(game_players) != 4:
             raise ValidationError(
-                f"Game requires 4 players, {player_count} in room",
+                f"Game requires 4 players, {len(game_players)} in room",
                 ErrorCode.ROOM_NOT_ENOUGH_PLAYERS,
             )
 
@@ -467,7 +470,35 @@ class RoomService:
         game.current_round_number = 1
         await self.db.flush()
 
-        # Update Redis
+        # Create Round record
+        round_ = Round(
+            game_id=game_id,
+            round_number=1,
+            phase=RoundPhase.TRUMP_BIDDING,
+            minimum_bid=5,
+            frisch_count=0,
+            consecutive_passes=0,
+            current_bidder_seat=0,
+            total_tricks_played=0,
+        )
+        self.db.add(round_)
+        await self.db.flush()
+
+        # Create RoundPlayer records for each player
+        for gp in game_players:
+            round_player = RoundPlayer(
+                round_id=round_.id,
+                user_id=gp.user_id,
+                seat_position=gp.seat_position,
+                tricks_won=0,
+            )
+            self.db.add(round_player)
+        await self.db.flush()
+
+        # Get the first bidder (player in seat 0)
+        first_bidder = game_players[0]
+
+        # Update Redis room state
         now = datetime.utcnow().isoformat()
         await self.redis.hset(
             f"room:{room_code}",
@@ -476,22 +507,43 @@ class RoomService:
                 "last_activity": now,
             },
         )
-        await self._refresh_ttl(room_code)
 
-        # Get the first bidder (player in seat 0)
-        first_bidder_result = await self.db.execute(
-            select(GamePlayer.user_id)
-            .where(GamePlayer.game_id == game_id)
-            .order_by(GamePlayer.seat_position)
-            .limit(1)
+        # Initialize round state in Redis
+        await self.redis.hset(
+            f"room:{room_code}:round",
+            mapping={
+                "round_id": str(round_.id),
+                "round_number": "1",
+                "phase": RoundPhase.TRUMP_BIDDING.value,
+                "minimum_bid": "5",
+                "frisch_count": "0",
+                "consecutive_passes": "0",
+                "current_bidder_id": str(first_bidder.user_id),
+                "current_bidder_seat": "0",
+                "highest_bid": "",
+                "total_tricks_played": "0",
+            },
         )
-        first_bidder_id = first_bidder_result.scalar()
+
+        # Initialize empty passed players set
+        await self.redis.delete(f"room:{room_code}:passed_players")
+
+        # Initialize empty contracts hash
+        await self.redis.delete(f"room:{room_code}:contracts")
+
+        # Initialize empty tricks hash
+        await self.redis.delete(f"room:{room_code}:tricks")
+
+        # Initialize empty bid history
+        await self.redis.delete(f"room:{room_code}:bid_history")
+
+        await self._refresh_ttl(room_code)
 
         return StartGameResponse(
             game_id=game_id,
             status="bidding_trump",
             current_round=1,
-            first_bidder_id=first_bidder_id,  # Already a UUID from asyncpg
+            first_bidder_id=first_bidder.user_id,
             message="Game started",
         )
 
@@ -507,4 +559,7 @@ class RoomService:
         pipe.expire(f"room:{room_code}:players", ttl_seconds)
         pipe.expire(f"room:{room_code}:round", ttl_seconds)
         pipe.expire(f"room:{room_code}:bidding", ttl_seconds)
+        pipe.expire(f"room:{room_code}:contracts", ttl_seconds)
+        pipe.expire(f"room:{room_code}:tricks", ttl_seconds)
+        pipe.expire(f"room:{room_code}:passed_players", ttl_seconds)
         await pipe.execute()

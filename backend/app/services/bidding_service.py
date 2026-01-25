@@ -189,6 +189,21 @@ class BiddingService:
                 is_pass=False,
             )
 
+            # Store bid in chronological history
+            from datetime import datetime
+            bid_entry = {
+                "player_id": user_id,
+                "player_name": player_name,
+                "amount": bid_amount,
+                "suit": bid_suit.value,
+                "is_pass": False,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+            await self.redis.rpush(
+                f"room:{room_code}:bid_history",
+                json.dumps(bid_entry)
+            )
+
             # Update round state
             await self.redis.hset(
                 round_key,
@@ -204,12 +219,13 @@ class BiddingService:
             logger.exception("Error placing trump bid: %s", e)
             return False, "Internal error while placing bid"
 
-    async def pass_trump_bid(self, room_code: str, user_id: str) -> tuple[bool, str | None]:
+    async def pass_trump_bid(self, room_code: str, user_id: str, player_name: str | None = None) -> tuple[bool, str | None]:
         """Record a player passing in trump bidding.
 
         Args:
             room_code: Room code
             user_id: User passing
+            player_name: Player's display name (optional, for bid history)
 
         Returns:
             Tuple of (success, error_message)
@@ -217,6 +233,7 @@ class BiddingService:
         Side effects:
             - Increments consecutive_passes
             - Updates current_bidder for next player
+            - Stores pass in bid history
         """
         round_key = f"room:{room_code}:round"
 
@@ -230,6 +247,21 @@ class BiddingService:
             current_bidder_id = round_data.get("current_bidder_id")
             if current_bidder_id is None or current_bidder_id != user_id:
                 return False, "Not your turn"
+
+            # Store pass in chronological history
+            from datetime import datetime
+            pass_entry = {
+                "player_id": user_id,
+                "player_name": player_name or "Unknown",
+                "amount": 0,
+                "suit": None,
+                "is_pass": True,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+            await self.redis.rpush(
+                f"room:{room_code}:bid_history",
+                json.dumps(pass_entry)
+            )
 
             # Increment consecutive passes
             current_passes = int(round_data.get("consecutive_passes", 0))
@@ -278,6 +310,9 @@ class BiddingService:
             # Increment frisch count and get new minimum bid
             new_frisch_count = frisch_count + 1
             new_minimum_bid = self.get_minimum_bid(new_frisch_count)
+
+            # Clear bid history for new auction
+            await self.redis.delete(f"room:{room_code}:bid_history")
 
             # Reset bidding state for frisch
             await self.redis.hset(

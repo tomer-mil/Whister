@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { GameState, GameActions, GamePlayer } from '@/types/store';
+import type { GameState, GameActions, GamePlayer, PlayerRoundResult } from '@/types/store';
 import type { GameStatus } from '@/types/game';
 
 export interface GameSlice extends GameState, GameActions {}
@@ -11,6 +11,10 @@ const initialGameState: GameState = {
   totalRounds: 13,
   gamePlayers: [],
   myPlayerId: null,
+  // Playing phase state
+  totalTricksPlayed: 0,
+  playerTricks: {},
+  roundResults: null,
 };
 
 export const createGameSlice: any = (set: any, get: any) => ({
@@ -68,4 +72,24 @@ export const createGameSlice: any = (set: any, get: any) => ({
   },
 
   resetGame: () => set(initialGameState),
+
+  // Playing phase actions
+  updatePlayerTricks: (playerId, tricksWon) => {
+    set((state) => ({
+      playerTricks: {
+        ...state.playerTricks,
+        [playerId]: tricksWon,
+      },
+    }));
+  },
+
+  incrementTotalTricks: () => {
+    set((state) => ({
+      totalTricksPlayed: state.totalTricksPlayed + 1,
+    }));
+  },
+
+  setRoundResults: (results) => {
+    set({ roundResults: results });
+  },
 });

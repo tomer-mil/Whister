@@ -149,6 +149,8 @@ export interface BidPassedPayload {
 export interface BidFrischStartedPayload {
   frisch_number: number;
   new_minimum_bid: number;
+  first_bidder_id: string | null;
+  first_bidder_name: string | null;
   message: string;
   timestamp?: string;
 }
@@ -173,6 +175,19 @@ export interface BidYourTurnPayload {
   is_last_bidder: boolean;
   is_trump_winner: boolean;
   trump_winning_bid: number | null;
+  timestamp?: string;
+}
+
+/** Generic your turn payload - matches backend YourTurnPayload */
+export interface YourTurnPayload {
+  phase: string;
+  minimum_bid?: number | null;
+  current_highest_bid?: number | null;
+  current_highest_suit?: string | null;
+  is_last_bidder?: boolean;
+  is_trump_winner?: boolean;
+  trump_winning_bid?: number | null;
+  current_contract_sum?: number | null;
   timestamp?: string;
 }
 

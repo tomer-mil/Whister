@@ -5,7 +5,7 @@ import type {
   TrumpBid,
   ContractBid,
 } from '@/types/store';
-import type { RoundPhase } from '@/types/game';
+import type { RoundPhase, TrumpSuit } from '@/types/game';
 
 export interface BiddingSlice extends BiddingState, BiddingActions {}
 
@@ -13,19 +13,24 @@ const initialBiddingState: BiddingState = {
   phase: 'trump_bidding',
   currentTurnPlayerId: null,
 
+  // Trump bidding
   trumpBids: [],
   highestTrumpBid: null,
+  passedPlayers: new Set<string>(),
   minimumBid: 5,
   consecutivePasses: 0,
   frischCount: 0,
 
+  // Contract bidding
   contracts: [],
   contractSum: 0,
   trumpWinnerId: null,
+  trumpWinnerName: null,
   trumpWinningBid: null,
   trumpSuit: null,
   gameType: null,
 
+  // UI state
   isMyTurn: false,
   isSubmitting: false,
 };
@@ -33,29 +38,12 @@ const initialBiddingState: BiddingState = {
 export const createBiddingSlice: any = (set: any, get: any) => ({
   ...initialBiddingState,
 
-  placeTrumpBid: async (amount, suit) => {
+  placeTrumpBid: async (amount: number, suit: TrumpSuit) => {
     set({ isSubmitting: true });
     try {
-      // TODO: Implement Socket.IO emit to bid:trump
-      // const socket = getSocket();
-      // await new Promise((resolve, reject) => {
-      //   socket.emit('bid:trump', { amount, suit }, (response: { success: boolean; error?: string }) => {
-      //     if (response.success) resolve();
-      //     else reject(new Error(response.error));
-      //   });
-      // });
-
-      // Mock implementation - just add the bid
-      const newBid: TrumpBid = {
-        playerId: get().user?.id ?? 'unknown',
-        playerName: get().user?.displayName ?? 'Unknown',
-        amount,
-        suit,
-        timestamp: new Date().toISOString(),
-      };
-
+      // This is now handled by use-bidding hook
+      // Just set submitting state here
       set({ isSubmitting: false });
-      get().addTrumpBid(newBid);
     } catch (error) {
       set({ isSubmitting: false });
       throw error;
@@ -65,111 +53,122 @@ export const createBiddingSlice: any = (set: any, get: any) => ({
   passTrumpBid: async () => {
     set({ isSubmitting: true });
     try {
-      // TODO: Implement Socket.IO emit to bid:pass
-      // const socket = getSocket();
-      // await new Promise((resolve, reject) => {
-      //   socket.emit('bid:pass', {}, (response: { success: boolean; error?: string }) => {
-      //     if (response.success) resolve();
-      //     else reject(new Error(response.error));
-      //   });
-      // });
-
-      set((state) => ({
-        consecutivePasses: state.consecutivePasses + 1,
-        isSubmitting: false,
-      }));
+      // This is now handled by use-bidding hook
+      set({ isSubmitting: false });
     } catch (error) {
       set({ isSubmitting: false });
       throw error;
     }
   },
 
-  placeContractBid: async (amount) => {
+  placeContractBid: async (amount: number) => {
     set({ isSubmitting: true });
     try {
-      // TODO: Implement Socket.IO emit to bid:contract
-      // const socket = getSocket();
-      // await new Promise((resolve, reject) => {
-      //   socket.emit('bid:contract', { amount }, (response: { success: boolean; error?: string }) => {
-      //     if (response.success) resolve();
-      //     else reject(new Error(response.error));
-      //   });
-      // });
-
-      const newContract: ContractBid = {
-        playerId: get().user?.id ?? 'unknown',
-        playerName: get().user?.displayName ?? 'Unknown',
-        seatPosition: 0, // TODO: Get from game state
-        amount,
-        timestamp: new Date().toISOString(),
-      };
-
+      // This is now handled by use-bidding hook
       set({ isSubmitting: false });
-      get().addContract(newContract);
     } catch (error) {
       set({ isSubmitting: false });
       throw error;
     }
   },
 
-  setPhase: (phase) => set({ phase }),
+  setPhase: (phase: RoundPhase) => set({ phase }),
 
-  setTrumpBids: (bids) => {
-    const highestBid = bids.length > 0 ? bids[bids.length - 1] : null;
+  setTrumpBids: (bids: TrumpBid[]) => {
+    // Find highest non-pass bid
+    const highestBid = [...bids]
+      .reverse()
+      .find(b => !b.isPass) || null;
+
+    // Build passed players set from history
+    const passedPlayers = new Set(
+      bids
+        .filter(b => b.isPass)
+        .map(b => b.playerId)
+    );
+
     set({
       trumpBids: bids,
       highestTrumpBid: highestBid,
+      passedPlayers,
     });
   },
 
-  addTrumpBid: (bid) => {
-    set((state) => ({
-      trumpBids: [...state.trumpBids, bid],
-      highestTrumpBid: bid,
-      consecutivePasses: 0,
-    }));
+  addTrumpBid: (bid: TrumpBid) => {
+    set((state: BiddingState) => {
+      const newBids = [...state.trumpBids, bid];
+      return {
+        trumpBids: newBids,
+        highestTrumpBid: bid.isPass ? state.highestTrumpBid : bid,
+        consecutivePasses: 0,
+      };
+    });
   },
 
-  setTrumpResult: (winnerId, bid, suit) => {
+  addPass: (playerId: string, playerName: string) => {
+    const passBid: TrumpBid = {
+      playerId,
+      playerName,
+      amount: 0,
+      suit: null,
+      isPass: true,
+      timestamp: new Date().toISOString(),
+    };
+
+    set((state: BiddingState) => {
+      const newPassedPlayers = new Set(state.passedPlayers);
+      newPassedPlayers.add(playerId);
+
+      return {
+        trumpBids: [...state.trumpBids, passBid],
+        passedPlayers: newPassedPlayers,
+        consecutivePasses: state.consecutivePasses + 1,
+      };
+    });
+  },
+
+  setTrumpResult: (winnerId: string, winnerName: string, bid: number, suit: TrumpSuit) => {
     set({
       trumpWinnerId: winnerId,
+      trumpWinnerName: winnerName,
       trumpWinningBid: bid,
       trumpSuit: suit,
       phase: 'contract_bidding' as RoundPhase,
     });
   },
 
-  setFrisch: (frischCount, minimumBid) => {
+  setFrisch: (frischCount: number, minimumBid: number) => {
     set({
       frischCount,
       minimumBid,
       phase: 'frisch' as RoundPhase,
       trumpBids: [],
       highestTrumpBid: null,
+      passedPlayers: new Set<string>(),
       consecutivePasses: 0,
     });
   },
 
-  setContracts: (contracts) => {
+  setContracts: (contracts: ContractBid[]) => {
     const sum = contracts.reduce((acc, c) => acc + c.amount, 0);
     set({ contracts, contractSum: sum });
   },
 
-  addContract: (contract) => {
-    set((state) => ({
+  addContract: (contract: ContractBid) => {
+    set((state: BiddingState) => ({
       contracts: [...state.contracts, contract],
       contractSum: state.contractSum + contract.amount,
     }));
   },
 
-  setContractsComplete: (gameType) => {
+  setContractsComplete: (gameType: 'over' | 'under') => {
     set({
       gameType,
       phase: 'playing' as RoundPhase,
     });
   },
 
-  setCurrentTurn: (playerId) => {
+  setCurrentTurn: (playerId: string) => {
     const myId = get().user?.id;
     set({
       currentTurnPlayerId: playerId,
@@ -177,5 +176,8 @@ export const createBiddingSlice: any = (set: any, get: any) => ({
     });
   },
 
-  resetBidding: () => set(initialBiddingState),
+  resetBidding: () => set({
+    ...initialBiddingState,
+    passedPlayers: new Set<string>(), // Reset to new Set instance
+  }),
 });
