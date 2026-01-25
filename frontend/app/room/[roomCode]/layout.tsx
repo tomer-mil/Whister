@@ -12,6 +12,7 @@ import { useSocket } from '@/hooks/use-socket';
 import { useRoomJoin } from '@/hooks/use-room-join';
 import { useRoom } from '@/hooks/use-room';
 import { useSocketEvent } from '@/hooks/use-socket-event';
+import { socketManager } from '@/lib/socket/manager';
 import type { GameStartingPayload } from '@/types/socket-events';
 
 type Props = {
@@ -42,31 +43,31 @@ function RoomLayoutClient({
   onGameStarting: (gameId: string) => void;
 }) {
   const [roomCode, setRoomCode] = React.useState<string | null>(null);
-  const hasJoinedRef = React.useRef(false);
-  const roomCodeRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     params.then((p) => setRoomCode(p.roomCode));
   }, [params]);
 
-  // Track roomCode in ref for cleanup
-  React.useEffect(() => {
-    roomCodeRef.current = roomCode;
-  }, [roomCode]);
-
   // Initialize socket connection
   const { isConnected } = useSocket({ autoConnect: true });
 
-  // Get join function and display name
-  const { joinRoom, leaveRoom } = useRoomJoin();
+  // Get join function
+  const { joinRoom } = useRoomJoin();
   const displayName = useStore((state) => state.user?.displayName || 'Player');
 
   // Subscribe to room events (doesn't auto-join)
   useRoom({ roomCode: roomCode ?? undefined });
 
   // Explicitly join room when roomCode is available AND socket is connected
+  // Use socketManager to check if already in room (handles Strict Mode remounts)
   React.useEffect(() => {
-    if (!roomCode || hasJoinedRef.current || !isConnected) {
+    if (!roomCode || !isConnected) {
+      return;
+    }
+
+    // Check if already in this room (socketManager tracks this globally)
+    if (socketManager.isInRoom(roomCode)) {
+      console.log('[RoomLayout] Already in room:', roomCode);
       return;
     }
 
@@ -74,24 +75,11 @@ function RoomLayoutClient({
     joinRoom(roomCode, displayName)
       .then(() => {
         console.log('[RoomLayout] Successfully joined room');
-        hasJoinedRef.current = true;
       })
       .catch((error) => {
         console.error('[RoomLayout] Failed to join room:', error);
       });
   }, [roomCode, isConnected, joinRoom, displayName]);
-
-  // Cleanup: Leave room on unmount only (empty deps = only runs on mount/unmount)
-  React.useEffect(() => {
-    return () => {
-      if (hasJoinedRef.current && roomCodeRef.current) {
-        console.log('[RoomLayout] Leaving room on unmount:', roomCodeRef.current);
-        leaveRoom(roomCodeRef.current);
-        hasJoinedRef.current = false;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Handle game started event - redirect to game page
   useSocketEvent('room:game_starting', (payload: GameStartingPayload) => {
