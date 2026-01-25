@@ -3,8 +3,8 @@
  * Type-safe Socket.IO event listener with automatic cleanup
  */
 
-import { useEffect, useRef } from 'react';
-import { getSocket } from '@/lib/socket/client';
+import { useEffect, useRef, useState } from 'react';
+import { socketManager } from '@/lib/socket/manager';
 import type { ServerToClientEvents, TypedSocket } from '@/types/socket-events';
 
 /**
@@ -18,20 +18,34 @@ export function useSocketEvent<K extends keyof ServerToClientEvents>(
   handler: ServerToClientEvents[K]
 ): void {
   const handlerRef = useRef(handler);
+  const [socket, setSocket] = useState<TypedSocket | null>(null);
 
   // Update handler ref when handler changes (avoids stale closures)
   useEffect(() => {
     handlerRef.current = handler;
   }, [handler]);
 
-  // Subscribe to socket event - only re-subscribes when event name changes
+  // Poll for socket availability
   useEffect(() => {
-    let socket: TypedSocket | null = null;
+    const checkSocket = () => {
+      const sock = socketManager.getSocket();
+      if (sock && sock.connected) {
+        setSocket(sock);
+      }
+    };
 
-    try {
-      socket = getSocket();
-    } catch {
-      console.warn(`[useSocketEvent] Socket not initialized for event "${String(event)}"`);
+    // Check immediately
+    checkSocket();
+
+    // Poll every 100ms until socket is available
+    const interval = setInterval(checkSocket, 100);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Subscribe to socket event once socket is available
+  useEffect(() => {
+    if (!socket) {
       return;
     }
 
@@ -46,7 +60,7 @@ export function useSocketEvent<K extends keyof ServerToClientEvents>(
     return () => {
       socket?.off(event as any, wrappedHandler);
     };
-  }, [event]);
+  }, [event, socket]);
 }
 
 export default useSocketEvent;

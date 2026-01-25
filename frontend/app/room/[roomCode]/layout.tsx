@@ -49,7 +49,7 @@ function RoomLayoutClient({
   }, [params]);
 
   // Initialize socket connection
-  useSocket({ autoConnect: true });
+  const { isConnected } = useSocket({ autoConnect: true });
 
   // Get join function and display name
   const { joinRoom, leaveRoom } = useRoomJoin();
@@ -58,9 +58,9 @@ function RoomLayoutClient({
   // Subscribe to room events (doesn't auto-join)
   useRoom({ roomCode: roomCode ?? undefined });
 
-  // Explicitly join room when roomCode is available
+  // Explicitly join room when roomCode is available AND socket is connected
   React.useEffect(() => {
-    if (!roomCode || hasJoined) {
+    if (!roomCode || hasJoined || !isConnected) {
       return;
     }
 
@@ -82,7 +82,7 @@ function RoomLayoutClient({
         setHasJoined(false);
       }
     };
-  }, [roomCode, hasJoined, joinRoom, leaveRoom, displayName]);
+  }, [roomCode, hasJoined, isConnected, joinRoom, leaveRoom, displayName]);
 
   // Handle game started event - redirect to game page
   useSocketEvent('room:game_starting', (payload: GameStartingPayload) => {

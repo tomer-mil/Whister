@@ -33,10 +33,27 @@ export interface UseRoomOptions {
 export function useRoom(options: UseRoomOptions = {}) {
   const [socket, setSocket] = useState<TypedSocket | null>(null);
 
-  // Get socket from manager
+  // Get socket from manager and listen for connection changes
   useEffect(() => {
+    const updateSocket = () => {
+      const sock = socketManager.getSocket();
+      setSocket(sock);
+    };
+
+    // Initial check
+    updateSocket();
+
+    // Listen for connection events
     const sock = socketManager.getSocket();
-    setSocket(sock);
+    if (sock) {
+      sock.on('connect', updateSocket);
+      sock.on('disconnect', updateSocket);
+
+      return () => {
+        sock.off('connect', updateSocket);
+        sock.off('disconnect', updateSocket);
+      };
+    }
   }, []);
 
   // Type-safe emit function
