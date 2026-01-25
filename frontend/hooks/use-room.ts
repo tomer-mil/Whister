@@ -30,7 +30,7 @@ export interface UseRoomOptions {
  * Hook for room event subscriptions
  * Does NOT handle joining - use useRoomJoin for that
  */
-export function useRoom(options: UseRoomOptions = {}) {
+export function useRoom(_options: UseRoomOptions = {}) {
   const [socket, setSocket] = useState<TypedSocket | null>(null);
 
   // Get socket from manager and listen for connection changes
@@ -54,6 +54,8 @@ export function useRoom(options: UseRoomOptions = {}) {
         sock.off('disconnect', updateSocket);
       };
     }
+
+    return undefined;
   }, []);
 
   // Type-safe emit function

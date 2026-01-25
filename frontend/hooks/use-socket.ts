@@ -91,6 +91,8 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
         currentSocket.off('disconnect', handleDisconnect);
       };
     }
+
+    return undefined;
   }, [autoConnect, isHydrated, accessToken]);
 
   // Type-safe event emission

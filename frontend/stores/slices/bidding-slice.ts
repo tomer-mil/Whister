@@ -38,7 +38,7 @@ const initialBiddingState: BiddingState = {
 export const createBiddingSlice: any = (set: any, get: any) => ({
   ...initialBiddingState,
 
-  placeTrumpBid: async (amount: number, suit: TrumpSuit) => {
+  placeTrumpBid: async (_amount: number, _suit: TrumpSuit) => {
     set({ isSubmitting: true });
     try {
       // This is now handled by use-bidding hook
@@ -61,7 +61,7 @@ export const createBiddingSlice: any = (set: any, get: any) => ({
     }
   },
 
-  placeContractBid: async (amount: number) => {
+  placeContractBid: async (_amount: number) => {
     set({ isSubmitting: true });
     try {
       // This is now handled by use-bidding hook

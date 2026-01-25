@@ -62,6 +62,17 @@ export interface CumulativeScoreInfo {
   position: number;
 }
 
+/** Player result for a completed round - matches backend PlayerRoundResult */
+export interface PlayerRoundResultPayload {
+  player_id: string;
+  player_name: string;
+  seat_position: number;
+  contract: number;
+  tricks_won: number;
+  round_score: number;
+  made_contract: boolean;
+}
+
 // ============================================================
 // Payload Types - Room Events
 // ============================================================
@@ -231,7 +242,7 @@ export interface RoundCompletePayload {
   round_number: number;
   trump_suit: TrumpSuit;
   game_type: GameType;
-  players: ContractInfo[];
+  players: PlayerRoundResultPayload[];
   cumulative_scores: CumulativeScoreInfo[];
   timestamp?: string;
 }

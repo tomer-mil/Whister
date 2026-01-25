@@ -10,7 +10,7 @@ import React, { useCallback, useState } from 'react';
 import { useStore } from '@/stores';
 import { Card } from '@/components/ui/card';
 import { ConnectionStatus } from '@/components/shared/connection-status';
-// import { TrumpBiddingPanel } from '@/components/bidding/trump-bidding-panel';
+import { TrumpBiddingPanel } from '@/components/bidding/trump-bidding-panel';
 import { ContractBiddingPanel } from '@/components/bidding/contract-bidding-panel';
 import { TrickClaimButton } from '@/components/game/trick-claim-button';
 import { AllPlayersProgress } from '@/components/game/all-players-progress';
@@ -276,17 +276,8 @@ export default function GamePage({
 
         {/* Phase: Trump Bidding */}
         {(phase === 'trump_bidding' || phase === 'frisch') && roomCode && (
-          <Card variant="elevated" className="p-6 text-center">
-            <h2 className="text-xl font-bold mb-2">Trump Bidding Phase</h2>
-            <p className="text-muted-foreground">
-              Bidding UI coming soon... (Phase 2 refactor in progress)
-            </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Room: {roomCode} | Phase: {phase}
-            </p>
-          </Card>
+          <TrumpBiddingPanel roomCode={roomCode} />
         )}
-        {/* <TrumpBiddingPanel roomCode={roomCode} /> */}
 
         {/* Phase: Contract Bidding */}
         {phase === 'contract_bidding' && trumpSuit && (

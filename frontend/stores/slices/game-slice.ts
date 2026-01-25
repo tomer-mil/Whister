@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { GameState, GameActions, GamePlayer, PlayerRoundResult } from '@/types/store';
+import type { GameState, GameActions, GamePlayer } from '@/types/store';
 import type { GameStatus } from '@/types/game';
 
 export interface GameSlice extends GameState, GameActions {}

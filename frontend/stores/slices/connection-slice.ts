@@ -5,8 +5,6 @@
  * Updated by WebSocketManager service.
  */
 
-import type { StateCreator } from 'zustand';
-
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 export type RoomJoinStatus = 'idle' | 'joining' | 'joined' | 'leaving';
 
@@ -37,12 +35,7 @@ const initialState = {
   lastJoinError: null,
 };
 
-export const createConnectionSlice: StateCreator<
-  ConnectionState,
-  [],
-  [],
-  ConnectionState
-> = (set) => ({
+export const createConnectionSlice: any = (set: any, _get: any) => ({
   ...initialState,
 
   setConnectionStatus: (status) =>

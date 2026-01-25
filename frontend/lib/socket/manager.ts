@@ -11,9 +11,9 @@
  * - Direct Zustand store updates
  */
 
-import { io, Socket } from 'socket.io-client';
+import { io } from 'socket.io-client';
 import { useStore } from '@/stores';
-import type { TypedSocket, SocketResponse, RoomJoinedPayload } from '@/types/socket-events';
+import type { TypedSocket, RoomJoinedPayload } from '@/types/socket-events';
 
 const WS_URL =
   typeof window !== 'undefined'
@@ -202,7 +202,7 @@ class WebSocketManager {
 
     console.log('[SocketManager] Leaving room:', targetRoom);
 
-    return new Promise<void>((resolve, reject) => {
+    return new Promise<void>((resolve, _reject) => {
       const timeout = setTimeout(() => {
         // Clear state even on timeout
         if (this.currentRoom === targetRoom) {

@@ -25,7 +25,6 @@ export function useRoomJoin(): UseRoomJoinReturn {
   const [isJoining, setIsJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
 
-  const currentRoomCode = useStore((state) => state.currentRoomCode);
   const roomJoinStatus = useStore((state) => state.roomJoinStatus);
 
   const joinRoom = useCallback(async (roomCode: string, displayName: string) => {
