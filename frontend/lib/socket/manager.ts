@@ -150,25 +150,34 @@ class WebSocketManager {
         reject(new Error('Join room timeout'));
       }, 10000);
 
-      // Emit join event
-      this.socket!.emit(
-        'room:join',
-        { room_code: roomCode, display_name: displayName },
-        (response: SocketResponse) => {
-          clearTimeout(timeout);
+      // Set up one-time listener for room:joined event
+      const handleJoined = (payload: any) => {
+        clearTimeout(timeout);
+        console.log('[SocketManager] Join successful via room:joined event');
+        this.currentRoom = roomCode;
+        this.joinInProgress = null;
+        this.socket!.off('room:joined', handleJoined);
+        this.socket!.off('error', handleError);
+        resolve(payload);
+      };
 
-          if (response.success) {
-            console.log('[SocketManager] Join successful');
-            this.currentRoom = roomCode;
-            this.joinInProgress = null;
-            resolve(response.data as RoomJoinedPayload);
-          } else {
-            console.error('[SocketManager] Join failed:', response.error);
-            this.joinInProgress = null;
-            reject(new Error(response.error || 'Failed to join room'));
-          }
-        }
-      );
+      const handleError = (error: any) => {
+        clearTimeout(timeout);
+        console.error('[SocketManager] Join failed:', error);
+        this.joinInProgress = null;
+        this.socket!.off('room:joined', handleJoined);
+        this.socket!.off('error', handleError);
+        reject(new Error(error.message || 'Failed to join room'));
+      };
+
+      this.socket!.once('room:joined', handleJoined);
+      this.socket!.once('error', handleError);
+
+      // Emit join event (backend sends room:joined event in response, not callback)
+      this.socket!.emit('room:join', {
+        room_code: roomCode,
+        display_name: displayName,
+      });
     });
 
     return this.joinInProgress;
@@ -195,33 +204,32 @@ class WebSocketManager {
 
     return new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error('Leave room timeout'));
+        // Clear state even on timeout
+        if (this.currentRoom === targetRoom) {
+          this.currentRoom = null;
+          this.joinInProgress = null;
+        }
+        resolve(); // Don't reject on leave timeout - best effort
       }, 5000);
 
-      this.socket!.emit(
-        'room:leave',
-        { room_code: targetRoom },
-        (response: SocketResponse) => {
-          clearTimeout(timeout);
-
-          if (response.success) {
-            console.log('[SocketManager] Leave successful');
-            if (this.currentRoom === targetRoom) {
-              this.currentRoom = null;
-              this.joinInProgress = null;
-            }
-            resolve();
-          } else {
-            console.error('[SocketManager] Leave failed:', response.error);
-            // Clear state anyway
-            if (this.currentRoom === targetRoom) {
-              this.currentRoom = null;
-              this.joinInProgress = null;
-            }
-            reject(new Error(response.error || 'Failed to leave room'));
-          }
+      // Set up one-time listener for room:left event
+      const handleLeft = () => {
+        clearTimeout(timeout);
+        console.log('[SocketManager] Leave successful via room:left event');
+        if (this.currentRoom === targetRoom) {
+          this.currentRoom = null;
+          this.joinInProgress = null;
         }
-      );
+        this.socket!.off('room:left', handleLeft);
+        resolve();
+      };
+
+      this.socket!.once('room:left', handleLeft);
+
+      // Emit leave event (backend sends room:left event in response)
+      this.socket!.emit('room:leave', {
+        room_code: targetRoom,
+      });
     });
   }
 
