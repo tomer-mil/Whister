@@ -42,7 +42,7 @@ function RoomLayoutClient({
   onGameStarting: (gameId: string) => void;
 }) {
   const [roomCode, setRoomCode] = React.useState<string | null>(null);
-  const [hasJoined, setHasJoined] = React.useState(false);
+  const hasJoinedRef = React.useRef(false);
 
   React.useEffect(() => {
     params.then((p) => setRoomCode(p.roomCode));
@@ -60,7 +60,7 @@ function RoomLayoutClient({
 
   // Explicitly join room when roomCode is available AND socket is connected
   React.useEffect(() => {
-    if (!roomCode || hasJoined || !isConnected) {
+    if (!roomCode || hasJoinedRef.current || !isConnected) {
       return;
     }
 
@@ -68,21 +68,23 @@ function RoomLayoutClient({
     joinRoom(roomCode, displayName)
       .then(() => {
         console.log('[RoomLayout] Successfully joined room');
-        setHasJoined(true);
+        hasJoinedRef.current = true;
       })
       .catch((error) => {
         console.error('[RoomLayout] Failed to join room:', error);
       });
+  }, [roomCode, isConnected, joinRoom, displayName]);
 
-    // Cleanup: Leave room on unmount
+  // Cleanup: Leave room on unmount only
+  React.useEffect(() => {
     return () => {
-      if (hasJoined) {
+      if (hasJoinedRef.current && roomCode) {
         console.log('[RoomLayout] Leaving room on unmount:', roomCode);
         leaveRoom(roomCode);
-        setHasJoined(false);
+        hasJoinedRef.current = false;
       }
     };
-  }, [roomCode, hasJoined, isConnected, joinRoom, leaveRoom, displayName]);
+  }, [roomCode, leaveRoom]);
 
   // Handle game started event - redirect to game page
   useSocketEvent('room:game_starting', (payload: GameStartingPayload) => {
