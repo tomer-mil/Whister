@@ -48,6 +48,9 @@ export const createRoomSlice: any = (set: any, get: any) => ({
         ],
       });
 
+      // Sync currentRoomCode in connection slice
+      get().setCurrentRoomCode(mockRoomCode);
+
       return mockRoomCode;
     } catch (error) {
       set({ isCreating: false });
@@ -85,6 +88,9 @@ export const createRoomSlice: any = (set: any, get: any) => ({
         isAdmin: false,
         isJoining: false,
       });
+
+      // Sync currentRoomCode in connection slice
+      get().setCurrentRoomCode(roomCode);
     } catch (error) {
       set({ isJoining: false });
       throw error;
@@ -98,6 +104,9 @@ export const createRoomSlice: any = (set: any, get: any) => ({
       // apiClient.post(`/rooms/${roomCode}/leave`).catch(console.error);
     }
     set(initialRoomState);
+
+    // Sync currentRoomCode in connection slice
+    get().setCurrentRoomCode(null);
   },
 
   setRoomData: (data: { roomCode: string; roomId?: string; isAdmin: boolean; players: any[] }) => {
@@ -109,6 +118,9 @@ export const createRoomSlice: any = (set: any, get: any) => ({
       isJoining: false,
       isCreating: false,
     });
+
+    // Sync currentRoomCode in connection slice to prevent redirect
+    get().setCurrentRoomCode(data.roomCode);
   },
 
   updateSeating: (playerId, position) => {
