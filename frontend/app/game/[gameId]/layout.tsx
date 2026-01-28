@@ -33,28 +33,23 @@ export default function GameLayout({ children, params }: Props) {
   // Subscribe to room events
   useRoom({ roomCode: roomCode ?? undefined });
 
-  // Get room join function
-  const { joinRoom } = useRoomJoin();
-
-  // Re-join room when game page loads to get fresh game state
-  // This triggers a room:joined event with current game state (phase, players, etc.)
+  // Fetch game state by emitting room:join directly (bypasses guard)
   React.useEffect(() => {
     if (!roomCode) return;
 
-    // Check if we're in the room
-    if (socketManager.isInRoom(roomCode)) {
-      console.log('[GameLayout] Re-joining room to fetch game state:', roomCode);
-      // Re-join to get updated game state
-      joinRoom(roomCode, displayName).catch((error) => {
-        console.error('[GameLayout] Failed to re-join room:', error);
-      });
-    } else {
-      console.warn('[GameLayout] Not in room:', roomCode, '- joining now');
-      joinRoom(roomCode, displayName).catch((error) => {
-        console.error('[GameLayout] Failed to join room:', error);
-      });
+    const socket = socketManager.getSocket();
+    if (!socket || !socket.connected) {
+      console.warn('[GameLayout] Socket not connected, cannot fetch game state');
+      return;
     }
-  }, [roomCode, joinRoom, displayName]);
+
+    // Emit room:join to get fresh game state (bypasses isInRoom guard)
+    console.log('[GameLayout] Fetching game state for room:', roomCode);
+    socket.emit('room:join', {
+      room_code: roomCode,
+      display_name: displayName,
+    });
+  }, [roomCode, displayName]);
 
   if (!gameId) {
     return null;
