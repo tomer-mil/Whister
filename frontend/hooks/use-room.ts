@@ -116,6 +116,8 @@ export function useRoom(_options: UseRoomOptions = {}) {
         // Verify currentRoomCode was set
         const currentRoomCode = useStore.getState().currentRoomCode;
         console.log('[useRoom] After setRoomData, currentRoomCode:', currentRoomCode);
+        console.log('[useRoom] Players in payload:', payload.players.length, payload.players);
+        console.log('[useRoom] Players in store:', useStore.getState().players);
 
         // If game is in progress (trump_bidding, contract_bidding, playing), populate game players
         if (payload.phase && ['trump_bidding', 'contract_bidding', 'playing', 'frisch'].includes(payload.phase)) {

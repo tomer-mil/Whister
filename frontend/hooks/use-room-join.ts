@@ -42,9 +42,22 @@ export function useRoomJoin(): UseRoomJoinReturn {
       const result = await socketManager.joinRoom(roomCode, displayName);
       console.log('[useRoomJoin] Join successful:', result);
 
-      // Update Zustand store
-      useStore.getState().setCurrentRoomCode(roomCode);
-      useStore.getState().setRoomJoinStatus('joined');
+      // Update Zustand store with room data from join response
+      const store = useStore.getState();
+      store.setRoomData({
+        roomCode: result.room_code,
+        roomId: result.game_id,
+        isAdmin: result.is_admin,
+        players: result.players.map((p: any) => ({
+          userId: p.user_id,
+          displayName: p.display_name,
+          seatPosition: p.seat_position,
+          isConnected: p.is_connected,
+          isAdmin: p.is_admin,
+        })),
+      });
+      store.setCurrentRoomCode(roomCode);
+      store.setRoomJoinStatus('joined');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to join room';
       console.error('[useRoomJoin] Join failed:', errorMessage);
