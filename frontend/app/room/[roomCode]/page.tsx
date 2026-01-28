@@ -29,11 +29,11 @@ export default function RoomLobbyPage({
   const {
     isAdmin,
     players,
-    roomCode: currentRoomCode,
+    currentRoomCode,
   } = useStore((state) => ({
     isAdmin: state.isAdmin,
     players: state.players,
-    roomCode: state.roomCode,
+    currentRoomCode: state.currentRoomCode,
   }));
 
   // Track if we've waited for hydration
