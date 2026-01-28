@@ -36,25 +36,25 @@ export default function RoomLobbyPage({
     roomCode: state.roomCode,
   }));
 
-  // Track if we've waited for WebSocket to connect
-  const [hasWaited, setHasWaited] = useState(false);
+  // Track if we've waited for hydration
+  const [hasHydrated, setHasHydrated] = useState(false);
 
-  // Wait a bit for WebSocket to connect and set room state before redirecting
+  // Wait briefly for Zustand hydration before checking room state
   useEffect(() => {
     const timer = setTimeout(() => {
-      setHasWaited(true);
-    }, 3000); // Give 3 seconds for WebSocket to connect
+      setHasHydrated(true);
+    }, 500); // Reduced from 3000ms - just enough for hydration
 
     return () => clearTimeout(timer);
   }, []);
 
-  // Redirect if not in a room (only after waiting for WebSocket)
+  // Redirect if not in a room (only after hydration)
   useEffect(() => {
-    if (hasWaited && !currentRoomCode) {
-      console.log('[RoomLobbyPage] No room code after waiting, redirecting to join');
+    if (hasHydrated && !currentRoomCode) {
+      console.log('[RoomLobbyPage] No room code after hydration, redirecting to join');
       router.push('/room/join');
     }
-  }, [hasWaited, currentRoomCode, router]);
+  }, [hasHydrated, currentRoomCode, router]);
 
   const handleStartGame = async () => {
     setError(null);
