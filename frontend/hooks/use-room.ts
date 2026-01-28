@@ -140,6 +140,12 @@ export function useRoom(_options: UseRoomOptions = {}) {
           if (payload.phase === 'trump_bidding' || payload.phase === 'frisch') {
             store.setPhase(payload.phase as any);
           }
+
+          // Set current turn player ID if in bidding phase
+          if (payload.current_bidder_id && (payload.phase === 'trump_bidding' || payload.phase === 'contract_bidding')) {
+            console.log('[useRoom] Setting current turn player:', payload.current_bidder_id);
+            store.setCurrentTurn(payload.current_bidder_id);
+          }
         }
       },
       [setRoomData]

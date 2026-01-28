@@ -92,6 +92,7 @@ class RoomJoinedPayload(TimestampedPayload):
     players: list[PlayerInfo]
     phase: GamePhase
     current_round: int | None = None
+    current_bidder_id: str | None = None  # UUID of player whose turn it is during bidding
 
 
 class RoomLeftPayload(TimestampedPayload):

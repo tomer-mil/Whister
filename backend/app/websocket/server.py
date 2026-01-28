@@ -228,6 +228,14 @@ def register_socketio_handlers(  # noqa: C901
                 # Join Socket.IO room
                 await ctx.join_room(f"room:{payload.room_code}")
 
+                # Get current bidder ID if in bidding phase
+                current_bidder_id = None
+                if join_result.phase in ["trump_bidding", "contract_bidding"]:
+                    round_key = f"room:{payload.room_code}:round"
+                    round_data = await room_manager.redis.hgetall(round_key)
+                    if round_data:
+                        current_bidder_id = round_data.get("current_bidder_id")
+
                 # Send confirmation
                 joined_payload = RoomJoinedPayload(
                     room_code=payload.room_code,
@@ -237,6 +245,7 @@ def register_socketio_handlers(  # noqa: C901
                     players=join_result.players,
                     phase=join_result.phase,  # type: ignore
                     current_round=join_result.current_round,
+                    current_bidder_id=current_bidder_id,
                 )
                 await ctx.emit(ServerEvents.ROOM_JOINED, joined_payload.to_dict())
 

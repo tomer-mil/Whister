@@ -86,6 +86,7 @@ export interface RoomJoinedPayload {
   players: PlayerInfo[];
   phase: string;
   current_round: number | null;
+  current_bidder_id?: string | null;
   timestamp?: string;
 }
 
