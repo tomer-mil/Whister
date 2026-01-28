@@ -113,6 +113,10 @@ export function useRoom(_options: UseRoomOptions = {}) {
           })),
         });
 
+        // Verify currentRoomCode was set
+        const currentRoomCode = useStore.getState().currentRoomCode;
+        console.log('[useRoom] After setRoomData, currentRoomCode:', currentRoomCode);
+
         // If game is in progress (trump_bidding, contract_bidding, playing), populate game players
         if (payload.phase && ['trump_bidding', 'contract_bidding', 'playing', 'frisch'].includes(payload.phase)) {
           const store = useStore.getState();
