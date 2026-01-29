@@ -119,8 +119,8 @@ export function useRoom(_options: UseRoomOptions = {}) {
         console.log('[useRoom] Players in payload:', payload.players.length, payload.players);
         console.log('[useRoom] Players in store:', useStore.getState().players);
 
-        // If game is in progress (trump_bidding, contract_bidding, playing), populate game players
-        if (payload.phase && ['trump_bidding', 'contract_bidding', 'playing', 'frisch'].includes(payload.phase)) {
+        // If game is in progress (bidding_trump, bidding_contract, playing), populate game players
+        if (payload.phase && ['bidding_trump', 'bidding_contract', 'playing', 'frisch'].includes(payload.phase)) {
           const store = useStore.getState();
           store.setGameState({
             gameId: payload.game_id,
@@ -137,12 +137,12 @@ export function useRoom(_options: UseRoomOptions = {}) {
           });
 
           // Set the bidding phase
-          if (payload.phase === 'trump_bidding' || payload.phase === 'frisch') {
+          if (payload.phase === 'bidding_trump' || payload.phase === 'frisch') {
             store.setPhase(payload.phase as any);
           }
 
           // Set current turn player ID if in bidding phase
-          if (payload.current_bidder_id && (payload.phase === 'trump_bidding' || payload.phase === 'contract_bidding')) {
+          if (payload.current_bidder_id && (payload.phase === 'bidding_trump' || payload.phase === 'bidding_contract')) {
             console.log('[useRoom] Setting current turn player:', payload.current_bidder_id);
             store.setCurrentTurn(payload.current_bidder_id);
           }

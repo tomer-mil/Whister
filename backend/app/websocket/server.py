@@ -230,7 +230,7 @@ def register_socketio_handlers(  # noqa: C901
 
                 # Get current bidder ID if in bidding phase
                 current_bidder_id = None
-                if join_result.phase in ["trump_bidding", "contract_bidding"]:
+                if join_result.phase in ["bidding_trump", "bidding_contract"]:
                     round_key = f"room:{payload.room_code}:round"
                     round_data = await room_manager.redis.hgetall(round_key)
                     if round_data:
@@ -251,7 +251,7 @@ def register_socketio_handlers(  # noqa: C901
 
                 # Check if it's this player's turn to bid
                 try:
-                    if join_result.phase in ["trump_bidding", "contract_bidding"]:
+                    if join_result.phase in ["bidding_trump", "bidding_contract"]:
                         from app.websocket.game_events import emit_your_turn
                         round_key = f"room:{payload.room_code}:round"
                         round_data = await room_manager.redis.hgetall(round_key)
