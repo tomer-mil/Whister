@@ -62,7 +62,7 @@ async def emit_error(
         details=details,
         recoverable=recoverable,
     )
-    await sio.emit(ServerEvents.ERROR, error_payload.model_dump(), to=sid)
+    await sio.emit(ServerEvents.ERROR, error_payload.to_dict(), to=sid)
 
 
 async def get_next_bidder(
@@ -113,7 +113,7 @@ async def emit_your_turn(
     socket_id = await room_manager.get_socket_for_user(user_id)
     if socket_id:
         payload = YourTurnPayload(phase=phase, **kwargs)
-        await sio.emit(ServerEvents.YOUR_TURN, payload.model_dump(), to=socket_id)
+        await sio.emit(ServerEvents.YOUR_TURN, payload.to_dict(), to=socket_id)
 
 
 def register_bidding_handlers(  # noqa: C901
