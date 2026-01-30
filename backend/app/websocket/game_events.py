@@ -207,6 +207,9 @@ def register_bidding_handlers(  # noqa: C901
             passed_raw = await room_manager.redis.smembers(f"room:{room_code}:passed_players")
             passed_players = {p.decode() if isinstance(p, bytes) else p for p in passed_raw}
 
+            # Remove current bidder from passed players (they just placed a bid)
+            await room_manager.redis.srem(f"room:{room_code}:passed_players", ctx.user_id)
+
             # Get next bidder
             next_id, next_name, next_seat = await get_next_bidder(
                 room_manager, room_code, player_info.seat_position, passed_players
@@ -242,7 +245,7 @@ def register_bidding_handlers(  # noqa: C901
             )
             await sio.emit(
                 ServerEvents.BID_PLACED,
-                broadcast_payload.model_dump(),
+                broadcast_payload.to_dict(),
                 room=room_code,
             )
 
@@ -259,6 +262,9 @@ def register_bidding_handlers(  # noqa: C901
                     current_highest_suit=payload.suit,
                     is_last_bidder=False,
                 )
+
+            # Return success acknowledgment to client
+            return {"success": True}
 
         except Exception as e:
             logger.exception("Error in handle_bid_trump: %s", e)
@@ -372,7 +378,7 @@ def register_bidding_handlers(  # noqa: C901
                     )
                     await sio.emit(
                         ServerEvents.BID_FRISCH_STARTED,
-                        frisch_payload.model_dump(),
+                        frisch_payload.to_dict(),
                         room=room_code,
                     )
 
@@ -387,16 +393,24 @@ def register_bidding_handlers(  # noqa: C901
                         current_highest_suit=None,
                         is_last_bidder=False,
                     )
-                    return
+                    return {"success": True}
                 else:
                     # Max frisch reached - this shouldn't normally happen
                     # Would need reshuffle logic here
                     logger.warning("Max frisch reached in room %s", room_code)
-                    return
+                    return {"success": True}
 
             # Check if trump is determined (3 passes after a valid bid)
             # Count non-passed players
             active_bidders = [p for p in players if p.user_id not in passed_players]
+
+            logger.info(
+                "Trump auction check - room: %s, passed_players: %s, active_bidders: %d, highest_bid: %s",
+                room_code,
+                passed_players,
+                len(active_bidders),
+                highest_bid_json,
+            )
 
             if highest_bid_json and len(active_bidders) == 1:
                 # Only one player left, they win the trump
@@ -438,7 +452,7 @@ def register_bidding_handlers(  # noqa: C901
                 )
                 await sio.emit(
                     ServerEvents.BID_TRUMP_SET,
-                    trump_payload.model_dump(),
+                    trump_payload.to_dict(),
                     room=room_code,
                 )
 
@@ -453,7 +467,7 @@ def register_bidding_handlers(  # noqa: C901
                     current_contract_sum=0,
                     is_last_bidder=False,
                 )
-                return
+                return {"success": True}
 
             # Normal pass - advance to next bidder
             next_id, next_name, next_seat = await get_next_bidder(
@@ -481,7 +495,7 @@ def register_bidding_handlers(  # noqa: C901
             )
             await sio.emit(
                 ServerEvents.BID_PASSED,
-                broadcast_payload.model_dump(),
+                broadcast_payload.to_dict(),
                 room=room_code,
             )
 
@@ -504,6 +518,9 @@ def register_bidding_handlers(  # noqa: C901
                     current_highest_suit=current_highest_suit,
                     is_last_bidder=False,
                 )
+
+            # Return success acknowledgment to client
+            return {"success": True}
 
         except Exception as e:
             logger.exception("Error in handle_bid_pass: %s", e)
@@ -653,7 +670,7 @@ def register_bidding_handlers(  # noqa: C901
                 )
                 await sio.emit(
                     ServerEvents.BID_CONTRACTS_SET,
-                    contracts_payload.model_dump(),
+                    contracts_payload.to_dict(),
                     room=room_code,
                 )
                 return
@@ -697,7 +714,7 @@ def register_bidding_handlers(  # noqa: C901
                     )
                     await sio.emit(
                         ServerEvents.BID_PLACED,
-                        broadcast_payload.model_dump(),
+                        broadcast_payload.to_dict(),
                         room=room_code,
                     )
 
@@ -715,7 +732,7 @@ def register_bidding_handlers(  # noqa: C901
                         current_contract_sum=current_sum + payload.amount,
                         is_last_bidder=is_next_last,
                     )
-                    return
+                    return {"success": True}
 
         except Exception as e:
             logger.exception("Error in handle_bid_contract: %s", e)
@@ -830,7 +847,7 @@ def register_playing_handlers(
             )
             await sio.emit(
                 ServerEvents.ROUND_TRICK_WON,
-                trick_payload.model_dump(),
+                trick_payload.to_dict(),
                 room=room_code,
             )
 
@@ -843,6 +860,9 @@ def register_playing_handlers(
                     scoring_service,
                     room_code,
                 )
+
+            # Return success acknowledgment to client
+            return {"success": True}
 
         except Exception as e:
             logger.exception("Error in handle_claim_trick: %s", e)
@@ -938,9 +958,12 @@ def register_playing_handlers(
             )
             await sio.emit(
                 "round:trick_undone",
-                trick_payload.model_dump(),
+                trick_payload.to_dict(),
                 room=room_code,
             )
+
+            # Return success acknowledgment to client
+            return {"success": True}
 
         except Exception as e:
             logger.exception("Error in handle_undo_trick: %s", e)
@@ -1020,7 +1043,7 @@ async def complete_round(
         )
         await sio.emit(
             ServerEvents.ROUND_COMPLETE,
-            complete_payload.model_dump(),
+            complete_payload.to_dict(),
             room=room_code,
         )
 
