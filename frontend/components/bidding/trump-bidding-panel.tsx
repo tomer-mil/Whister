@@ -27,6 +27,9 @@ export function TrumpBiddingPanel({ roomCode }: TrumpBiddingPanelProps) {
   const currentTurnPlayerId = useStore((state) => state.currentTurnPlayerId);
   const isSubmitting = useStore((state) => state.isSubmitting);
   const phase = useStore((state) => state.phase);
+  const passedPlayers = useStore((state) => state.passedPlayers);
+  const myUserId = useStore((state) => state.user?.id);
+  const hasUserPassed = myUserId ? passedPlayers.has(myUserId) : false;
 
   // Get room players to map IDs to names
   const roomPlayers = useStore((state) => state.gamePlayers);
@@ -81,7 +84,7 @@ export function TrumpBiddingPanel({ roomCode }: TrumpBiddingPanelProps) {
       />
 
       {/* Conditional: Active controls OR waiting view */}
-      {isMyTurn ? (
+      {isMyTurn && !hasUserPassed ? (
         <ActiveBiddingControls
           minimumBid={minimumBid}
           currentHighestBid={highestTrumpBid?.amount || null}
@@ -90,15 +93,19 @@ export function TrumpBiddingPanel({ roomCode }: TrumpBiddingPanelProps) {
           onPass={handlePass}
           isLoading={isSubmitting}
         />
+      ) : hasUserPassed ? (
+        <Card variant="outlined" className="p-4 bg-gray-50">
+          <p className="text-center text-muted-foreground">
+            You have passed. Waiting for others...
+          </p>
+        </Card>
       ) : (
-        <>
-          <WaitingForBidder
-            currentBidderName={currentBidderName}
-            currentHighestBid={highestTrumpBid?.amount || null}
-            currentHighestSuit={highestTrumpBid?.suit || null}
-            currentHighestBidderName={highestTrumpBid?.playerName || null}
-          />
-        </>
+        <WaitingForBidder
+          currentBidderName={currentBidderName}
+          currentHighestBid={highestTrumpBid?.amount || null}
+          currentHighestSuit={highestTrumpBid?.suit || null}
+          currentHighestBidderName={highestTrumpBid?.playerName || null}
+        />
       )}
     </div>
   );
