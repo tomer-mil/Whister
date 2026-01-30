@@ -82,6 +82,7 @@ export function useBidding(options: UseBiddingOptions) {
 
     // Trump bid placed
     socket.on('bid:placed', (payload: BidPlacedPayload) => {
+      console.log('[useBidding] Received bid:placed', payload);
       // Add the bid to store
       if (payload.bid && !payload.bid.is_pass) {
         addTrumpBid({

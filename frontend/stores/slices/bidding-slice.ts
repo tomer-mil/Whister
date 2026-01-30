@@ -97,9 +97,11 @@ export const createBiddingSlice: any = (set: any, get: any) => ({
   addTrumpBid: (bid: TrumpBid) => {
     set((state: BiddingState) => {
       const newBids = [...state.trumpBids, bid];
+      const newHighest = bid.isPass ? state.highestTrumpBid : bid;
+      console.log('[BiddingSlice] Adding trump bid, new highest:', newHighest);
       return {
         trumpBids: newBids,
-        highestTrumpBid: bid.isPass ? state.highestTrumpBid : bid,
+        highestTrumpBid: newHighest,
         consecutivePasses: 0,
       };
     });
