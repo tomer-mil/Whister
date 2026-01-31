@@ -56,7 +56,7 @@ async def create_group(
     Raises:
         HTTPException: If user not found or creation fails
     """
-    from app.core.config import get_redis
+    from app.dependencies.redis import get_redis
 
     redis = await get_redis()
     service = GroupService(db, redis)
@@ -97,7 +97,7 @@ async def list_user_groups(
     Returns:
         List of groups and total count
     """
-    from app.core.config import get_redis
+    from app.dependencies.redis import get_redis
 
     redis = await get_redis()
     service = GroupService(db, redis)
@@ -148,7 +148,7 @@ async def get_group(
     Raises:
         HTTPException: If group not found or user not member
     """
-    from app.core.config import get_redis
+    from app.dependencies.redis import get_redis
 
     redis = await get_redis()
     service = GroupService(db, redis)
@@ -204,7 +204,7 @@ async def add_member(
     Raises:
         HTTPException: If no permission or member already exists
     """
-    from app.core.config import get_redis
+    from app.dependencies.redis import get_redis
     from app.models import User
 
     redis = await get_redis()
@@ -264,7 +264,7 @@ async def remove_member(
     Raises:
         HTTPException: If no permission or member not found
     """
-    from app.core.config import get_redis
+    from app.dependencies.redis import get_redis
 
     redis = await get_redis()
     service = GroupService(db, redis)
@@ -312,7 +312,7 @@ async def get_player_stats(
     Raises:
         HTTPException: If player not found
     """
-    from app.core.config import get_redis
+    from app.dependencies.redis import get_redis
 
     redis = await get_redis()
     service = AnalyticsService(db, redis)
@@ -349,7 +349,7 @@ async def get_group_leaderboard(
     Raises:
         HTTPException: If group not found or user not member
     """
-    from app.core.config import get_redis
+    from app.dependencies.redis import get_redis
     from app.models import Group
 
     redis = await get_redis()
@@ -413,7 +413,7 @@ async def get_head_to_head(
     Raises:
         HTTPException: If players not found
     """
-    from app.core.config import get_redis
+    from app.dependencies.redis import get_redis
 
     redis = await get_redis()
     service = AnalyticsService(db, redis)

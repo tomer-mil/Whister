@@ -120,6 +120,7 @@ export function useRoom(_options: UseRoomOptions = {}) {
         console.log('[useRoom] Players in store:', useStore.getState().players);
 
         // If game is in progress (bidding_trump, bidding_contract, playing), populate game players
+        // NOTE: Backend sends GameStatus enum values, we map to RoundPhase values for internal state
         if (payload.phase && ['bidding_trump', 'bidding_contract', 'playing', 'frisch'].includes(payload.phase)) {
           const store = useStore.getState();
           store.setGameState({
@@ -136,9 +137,14 @@ export function useRoom(_options: UseRoomOptions = {}) {
             })),
           });
 
-          // Set the bidding phase
+          // Set the bidding phase - map GameStatus to RoundPhase
           if (payload.phase === 'bidding_trump' || payload.phase === 'frisch') {
-            store.setPhase(payload.phase as any);
+            // Map 'bidding_trump' (GameStatus) -> 'trump_bidding' (RoundPhase)
+            const roundPhase = payload.phase === 'bidding_trump' ? 'trump_bidding' : payload.phase;
+            store.setPhase(roundPhase as any);
+          } else if (payload.phase === 'bidding_contract') {
+            // Map 'bidding_contract' (GameStatus) -> 'contract_bidding' (RoundPhase)
+            store.setPhase('contract_bidding' as any);
           }
 
           // Set current turn player ID if in bidding phase

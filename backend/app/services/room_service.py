@@ -503,7 +503,7 @@ class RoomService:
         await self.redis.hset(
             f"room:{room_code}",
             mapping={
-                "status": "bidding_trump",
+                "status": GameStatus.BIDDING_TRUMP.value,
                 "last_activity": now,
             },
         )
@@ -541,7 +541,7 @@ class RoomService:
 
         return StartGameResponse(
             game_id=game_id,
-            status="bidding_trump",
+            status=GameStatus.BIDDING_TRUMP.value,
             current_round=1,
             first_bidder_id=first_bidder.user_id,
             message="Game started",
