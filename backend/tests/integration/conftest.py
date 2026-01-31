@@ -8,15 +8,15 @@ import socketio
 
 from app.main import app
 from app.core.security import create_access_token, create_refresh_token, hash_password
-from app.core.database import get_async_session, AsyncSessionLocal
+from app.core.database import db_manager
 from app.models.user import User
-from app.core.config import get_settings
+from app.config import get_settings
 
 
 @pytest_asyncio.fixture
 async def db_session():
     """Get async database session."""
-    async with AsyncSessionLocal() as session:
+    async with db_manager.session() as session:
         yield session
 
 
