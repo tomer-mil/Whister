@@ -114,6 +114,7 @@ export function useBidding(options: UseBiddingOptions) {
 
     // Trump bidding complete - winner determined
     socket.on('bid:trump_set', (payload: BidTrumpSetPayload) => {
+      console.log('[useBidding] Received bid:trump_set', payload);
       setTrumpResult(
         payload.winner_id,
         payload.winner_name,
