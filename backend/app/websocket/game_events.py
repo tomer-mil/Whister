@@ -246,7 +246,7 @@ def register_bidding_handlers(  # noqa: C901
             await sio.emit(
                 ServerEvents.BID_PLACED,
                 broadcast_payload.to_dict(),
-                room=room_code,
+                room=f"room:{room_code}",
             )
 
             # Emit your_turn to next bidder
@@ -379,7 +379,7 @@ def register_bidding_handlers(  # noqa: C901
                     await sio.emit(
                         ServerEvents.BID_FRISCH_STARTED,
                         frisch_payload.to_dict(),
-                        room=room_code,
+                        room=f"room:{room_code}",
                     )
 
                     # Emit your_turn to first bidder
@@ -453,7 +453,7 @@ def register_bidding_handlers(  # noqa: C901
                 await sio.emit(
                     ServerEvents.BID_TRUMP_SET,
                     trump_payload.to_dict(),
-                    room=room_code,
+                    room=f"room:{room_code}",
                 )
 
                 # Emit your_turn to trump winner for contract bidding
@@ -496,7 +496,7 @@ def register_bidding_handlers(  # noqa: C901
             await sio.emit(
                 ServerEvents.BID_PASSED,
                 broadcast_payload.to_dict(),
-                room=room_code,
+                room=f"room:{room_code}",
             )
 
             # Emit your_turn to next bidder
@@ -671,7 +671,7 @@ def register_bidding_handlers(  # noqa: C901
                 await sio.emit(
                     ServerEvents.BID_CONTRACTS_SET,
                     contracts_payload.to_dict(),
-                    room=room_code,
+                    room=f"room:{room_code}",
                 )
                 return
 
@@ -715,7 +715,7 @@ def register_bidding_handlers(  # noqa: C901
                     await sio.emit(
                         ServerEvents.BID_PLACED,
                         broadcast_payload.to_dict(),
-                        room=room_code,
+                        room=f"room:{room_code}",
                     )
 
                     # Check if next bidder is last
@@ -848,7 +848,7 @@ def register_playing_handlers(
             await sio.emit(
                 ServerEvents.ROUND_TRICK_WON,
                 trick_payload.to_dict(),
-                room=room_code,
+                room=f"room:{room_code}",
             )
 
             # Check for round complete
@@ -959,7 +959,7 @@ def register_playing_handlers(
             await sio.emit(
                 "round:trick_undone",
                 trick_payload.to_dict(),
-                room=room_code,
+                room=f"room:{room_code}",
             )
 
             # Return success acknowledgment to client
@@ -1044,7 +1044,7 @@ async def complete_round(
         await sio.emit(
             ServerEvents.ROUND_COMPLETE,
             complete_payload.to_dict(),
-            room=room_code,
+            room=f"room:{room_code}",
         )
 
     except Exception as e:
