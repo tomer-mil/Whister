@@ -144,9 +144,15 @@ export const createRoomSlice: any = (set: any, get: any) => ({
   setPlayers: (players) => set({ players }),
 
   addPlayer: (player) => {
-    set((state) => ({
-      players: [...state.players, player],
-    }));
+    set((state) => {
+      // Don't add if player already exists
+      if (state.players.some(p => p.userId === player.userId)) {
+        return state;
+      }
+      return {
+        players: [...state.players, player],
+      };
+    });
   },
 
   removePlayer: (playerId) => {
