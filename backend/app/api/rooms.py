@@ -285,3 +285,68 @@ async def start_game(
         )
 
     return result
+
+
+@router.post(  # type: ignore
+    "/{room_code}/next-round",
+    response_model=StartGameResponse,
+    responses={
+        200: {"description": "Next round started"},
+        401: {"description": "Unauthorized", "model": ErrorResponse},
+        404: {"description": "Room not found", "model": ErrorResponse},
+        422: {"description": "Current round not complete", "model": ErrorResponse},
+    },
+)
+async def start_next_round(
+    room_code: str,
+    current_user: CurrentUser,
+    room_service: RoomServiceDep,
+) -> StartGameResponse:
+    """Start the next round after completing the current one.
+
+    Transitions from round_complete phase back to trump_bidding for the next round.
+
+    **Path Parameters:**
+    - room_code: 6-character room code (case-insensitive)
+
+    **Response:**
+    - game_id: UUID of the game
+    - status: New game status ('bidding_trump')
+    - current_round: Next round number
+    - first_bidder_id: UUID of first bidder (seat 0)
+    - message: Confirmation message
+
+    **Errors:**
+    - 401: Missing or invalid access token
+    - 404: Room not found
+    - 422: Current round is not complete
+    """
+    normalized_room_code = room_code.upper()
+    result = await room_service.start_next_round(normalized_room_code, current_user)
+
+    # Emit WebSocket event to notify all players in the room
+    from app.main import sio
+
+    if sio is not None:
+        room_state = await room_service.get_room(normalized_room_code)
+        players = [
+            GameStartingPlayerInfo(
+                user_id=str(p.user_id),
+                seat_position=p.seat_position,
+            )
+            for p in room_state.players
+        ]
+
+        payload = RoomGameStartingPayload(
+            game_id=str(result.game_id),
+            players=players,
+        )
+
+        logger.info("Emitting room:game_starting to room:%s", normalized_room_code)
+        await sio.emit(
+            ServerEvents.ROOM_GAME_STARTING,
+            payload.to_dict(),
+            room=f"room:{normalized_room_code}",
+        )
+
+    return result

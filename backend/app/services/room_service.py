@@ -547,6 +547,131 @@ class RoomService:
             message="Game started",
         )
 
+    async def start_next_round(
+        self,
+        room_code: str,
+        current_user: User,
+    ) -> StartGameResponse:
+        """Start the next round after completing the current one.
+
+        Args:
+            room_code: 6-character room code
+            current_user: User (must be in the game)
+
+        Returns:
+            StartGameResponse with new round info
+
+        Raises:
+            NotFoundError: If room doesn't exist
+            ValidationError: If current round is not complete
+        """
+        # Get room
+        room_data = await self.redis.hgetall(f"room:{room_code}")
+        if not room_data:
+            raise NotFoundError("Room not found", ErrorCode.ROOM_NOT_FOUND)
+
+        game_id = UUID(room_data["game_id"])
+
+        # Get current round state
+        round_data = await self.redis.hgetall(f"room:{room_code}:round")
+        if not round_data:
+            raise NotFoundError("No active round", ErrorCode.ROUND_NOT_FOUND)
+
+        current_phase = round_data.get("phase")
+        if current_phase != RoundPhase.COMPLETE.value:
+            raise ValidationError(
+                "Current round is not complete",
+                ErrorCode.INVALID_GAME_STATE,
+            )
+
+        # Get game and update round number
+        result = await self.db.execute(select(Game).where(Game.id == game_id))
+        game = result.scalar_one()
+
+        next_round_number = game.current_round_number + 1
+        game.current_round_number = next_round_number
+        game.status = GameStatus.BIDDING_TRUMP
+        await self.db.flush()
+
+        # Get all players ordered by seat
+        result = await self.db.execute(
+            select(GamePlayer)
+            .where(GamePlayer.game_id == game_id)
+            .order_by(GamePlayer.seat_position)
+        )
+        game_players = list(result.scalars().all())
+
+        # Create new Round record
+        round_ = Round(
+            game_id=game_id,
+            round_number=next_round_number,
+            phase=RoundPhase.TRUMP_BIDDING,
+            minimum_bid=5,
+            frisch_count=0,
+            consecutive_passes=0,
+            current_bidder_seat=0,
+            total_tricks_played=0,
+        )
+        self.db.add(round_)
+        await self.db.flush()
+
+        # Create RoundPlayer records for each player
+        for gp in game_players:
+            round_player = RoundPlayer(
+                round_id=round_.id,
+                user_id=gp.user_id,
+                seat_position=gp.seat_position,
+                tricks_won=0,
+            )
+            self.db.add(round_player)
+        await self.db.flush()
+
+        # Get the first bidder (player in seat 0)
+        first_bidder = game_players[0]
+
+        # Update Redis room state
+        now = datetime.utcnow().isoformat()
+        await self.redis.hset(
+            f"room:{room_code}",
+            mapping={
+                "status": GameStatus.BIDDING_TRUMP.value,
+                "last_activity": now,
+            },
+        )
+
+        # Initialize round state in Redis
+        await self.redis.hset(
+            f"room:{room_code}:round",
+            mapping={
+                "round_id": str(round_.id),
+                "round_number": str(next_round_number),
+                "phase": RoundPhase.TRUMP_BIDDING.value,
+                "minimum_bid": "5",
+                "frisch_count": "0",
+                "consecutive_passes": "0",
+                "current_bidder_id": str(first_bidder.user_id),
+                "current_bidder_seat": "0",
+                "highest_bid": "",
+                "total_tricks_played": "0",
+            },
+        )
+
+        # Clear round-specific data
+        await self.redis.delete(f"room:{room_code}:passed_players")
+        await self.redis.delete(f"room:{room_code}:contracts")
+        await self.redis.delete(f"room:{room_code}:tricks")
+        await self.redis.delete(f"room:{room_code}:bid_history")
+
+        await self._refresh_ttl(room_code)
+
+        return StartGameResponse(
+            game_id=game_id,
+            status=GameStatus.BIDDING_TRUMP.value,
+            current_round=next_round_number,
+            first_bidder_id=first_bidder.user_id,
+            message=f"Round {next_round_number} started",
+        )
+
     async def _refresh_ttl(self, room_code: str) -> None:
         """Refresh TTL on all room keys.
 

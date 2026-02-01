@@ -210,16 +210,28 @@ export default function GamePage({
 
   // Handle continue to next round
   const handleContinueRound = useCallback(async () => {
+    if (!roomCode) return;
+
     setIsLoading(true);
     try {
-      // TODO: Implement start next round API call
-      // await api.post(`/rooms/${roomCode}/next-round`);
+      const response = await fetch(`/api/v1/rooms/${roomCode}/next-round`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to start next round');
+      }
+
+      console.log('Next round started successfully');
     } catch (err) {
+      console.error('Failed to start next round:', err);
       setError(err instanceof Error ? err.message : 'Failed to start next round');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [roomCode]);
 
   // Convert round results for modal
   const getRoundResults = useCallback(() => {
