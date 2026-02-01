@@ -45,7 +45,20 @@
       "Bash(cat:*)",
       "Bash(docker volume:*)",
       "Bash(pg_isready:*)",
-      "Bash(python -m py_compile:*)"
+      "Bash(python -m py_compile:*)",
+      "Bash(git show:*)",
+      "Bash(find:*)",
+      "Bash(source .venv/bin/activate)",
+      "Bash(backend/.venv/bin/python:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(../.venv/bin/pytest --version)",
+      "Bash(chmod:*)",
+      "Bash(./run_bidding_tests.sh:*)",
+      "Bash(pip install:*)",
+      "Bash(python -m pip install:*)",
+      "Bash(pytest:*)",
+      "Bash(/usr/bin/python3 -m pytest:*)",
+      "Bash(git checkout:*)"
     ],
     "additionalDirectories": [
       "/Users/tomer.mildworth/personal/Whister/frontend-app/{app,components/{ui,layout,room,bidding,game,scores,shared},hooks,lib/{socket,api,validation,utils},stores/slices"

@@ -122,6 +122,9 @@ export function useBidding(options: UseBiddingOptions) {
         payload.trump_suit as TrumpSuit
       );
       // Phase transition to contract_bidding is handled by setTrumpResult
+
+      // Set current turn to trump winner (first contract bidder)
+      setCurrentTurn(payload.winner_id);
     });
 
     // Frisch triggered - all players passed

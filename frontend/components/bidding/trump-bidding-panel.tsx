@@ -6,7 +6,6 @@
 'use client';
 
 import { useStore } from '@/stores';
-import { useBidding } from '@/hooks/use-bidding';
 import { BidHistoryTimeline } from './bid-history-timeline';
 import { ActiveBiddingControls } from './active-bidding-controls';
 import { WaitingForBidder } from './waiting-for-bidder';
@@ -15,9 +14,11 @@ import type { TrumpSuit } from '@/types/game';
 
 export interface TrumpBiddingPanelProps {
   roomCode: string;
+  onBidTrump: (amount: number, suit: TrumpSuit) => Promise<void>;
+  onPass: () => Promise<void>;
 }
 
-export function TrumpBiddingPanel({ roomCode }: TrumpBiddingPanelProps) {
+export function TrumpBiddingPanel({ roomCode, onBidTrump, onPass }: TrumpBiddingPanelProps) {
   // Get bidding state from store
   const trumpBids = useStore((state) => state.trumpBids);
   const highestTrumpBid = useStore((state) => state.highestTrumpBid);
@@ -34,9 +35,6 @@ export function TrumpBiddingPanel({ roomCode }: TrumpBiddingPanelProps) {
   // Get room players to map IDs to names
   const roomPlayers = useStore((state) => state.gamePlayers);
 
-  // Get bidding actions
-  const { bidTrump, passRound } = useBidding({ roomCode });
-
   // Find current bidder name
   const currentBidder = roomPlayers.find(p => p.userId === currentTurnPlayerId);
   const currentBidderName = currentBidder?.displayName || 'Unknown';
@@ -44,7 +42,7 @@ export function TrumpBiddingPanel({ roomCode }: TrumpBiddingPanelProps) {
   // Handle bid placement
   const handleBid = async (amount: number, suit: TrumpSuit) => {
     try {
-      await bidTrump(amount, suit);
+      await onBidTrump(amount, suit);
     } catch (error) {
       console.error('Failed to place bid:', error);
       throw error;
@@ -54,7 +52,7 @@ export function TrumpBiddingPanel({ roomCode }: TrumpBiddingPanelProps) {
   // Handle pass
   const handlePass = async () => {
     try {
-      await passRound();
+      await onPass();
     } catch (error) {
       console.error('Failed to pass:', error);
       throw error;

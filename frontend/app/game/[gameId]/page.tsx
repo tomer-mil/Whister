@@ -87,7 +87,7 @@ export default function GamePage({
   }));
 
   // Get hooks for socket operations
-  const { bidContract } = useBidding({ roomCode: roomCode ?? '' });
+  const { bidTrump, passRound, bidContract } = useBidding({ roomCode: roomCode ?? '' });
   const { claimTrick, undoTrick } = useGame({ roomCode: roomCode ?? '' });
 
   // Find trump winner name
@@ -276,7 +276,11 @@ export default function GamePage({
 
         {/* Phase: Trump Bidding */}
         {(phase === 'trump_bidding' || phase === 'frisch') && roomCode && (
-          <TrumpBiddingPanel roomCode={roomCode} />
+          <TrumpBiddingPanel
+            roomCode={roomCode}
+            onBidTrump={bidTrump}
+            onPass={passRound}
+          />
         )}
 
         {/* Phase: Contract Bidding */}
