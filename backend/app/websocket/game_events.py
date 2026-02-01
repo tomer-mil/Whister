@@ -20,6 +20,7 @@ from app.websocket.schemas import (
     BidPassPayload,
     BidPlacedPayload,
     BidTrumpPayload,
+    BidTrumpSetPayload,
     ClientEvents,
     ContractInfo,
     ContractsSetPayload,
@@ -30,7 +31,6 @@ from app.websocket.schemas import (
     RoundTrickWonPayload,
     RoundUndoTrickPayload,
     ServerEvents,
-    TrumpSetPayload,
     WSErrorCode,
     YourTurnPayload,
 )
@@ -443,7 +443,7 @@ def register_bidding_handlers(  # noqa: C901
                 )
 
                 # Emit trump set
-                trump_payload = TrumpSetPayload(
+                trump_payload = BidTrumpSetPayload(
                     trump_suit=trump_suit.value,
                     winner_id=winner_id,
                     winner_name=winner_name,
