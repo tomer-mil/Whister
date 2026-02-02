@@ -57,11 +57,15 @@ async function proxyRequest(
     // Prepare headers
     const headers = new Headers();
 
+    // Extract access token from cookies and set Authorization header
+    const accessToken = request.cookies.get('accessToken')?.value;
+    if (accessToken) {
+      headers.set('Authorization', `Bearer ${accessToken}`);
+    }
+
     // Copy relevant headers from the original request
     const headersToCopy = [
       'content-type',
-      'authorization',
-      'cookie',
     ];
 
     headersToCopy.forEach((headerName) => {
@@ -75,7 +79,6 @@ async function proxyRequest(
     const options: RequestInit = {
       method,
       headers,
-      credentials: 'include',
     };
 
     // Add body for non-GET requests

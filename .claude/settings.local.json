@@ -58,7 +58,11 @@
       "Bash(python -m pip install:*)",
       "Bash(pytest:*)",
       "Bash(/usr/bin/python3 -m pytest:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(python -c:*)",
+      "Bash(wc:*)",
+      "Bash(git diff:*)",
+      "Bash(npm test:*)"
     ],
     "additionalDirectories": [
       "/Users/tomer.mildworth/personal/Whister/frontend-app/{app,components/{ui,layout,room,bidding,game,scores,shared},hooks,lib/{socket,api,validation,utils},stores/slices"
