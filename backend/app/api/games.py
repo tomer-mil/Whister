@@ -156,6 +156,12 @@ async def end_game(
     Sets game status to FINISHED, calculates final player scores,
     and determines the winner.
     """
+    logger.info(
+        "End game requested for game %s by admin %s",
+        game_id,
+        current_user.id
+    )
+
     # Get game
     result = await db.execute(
         select(Game)
@@ -166,15 +172,23 @@ async def end_game(
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
 
+    # Check if game already finished (idempotency)
+    if game.status == GameStatus.FINISHED:
+        raise HTTPException(
+            status_code=400,
+            detail="Game already ended"
+        )
+
     # Check authorization (only admin can end game)
     if game.admin_id != current_user.id:
         raise HTTPException(status_code=403, detail="Only admin can end game")
 
-    # Get all completed rounds
+    # Get all completed rounds with players (eager loading)
     result = await db.execute(
         select(Round)
         .where(Round.game_id == game_id)
         .where(Round.phase == RoundPhase.COMPLETE)
+        .options(selectinload(Round.players))
     )
     rounds = list(result.scalars().all())
 
@@ -182,11 +196,8 @@ async def end_game(
     final_scores: dict[str, int] = {}
 
     for round_obj in rounds:
-        result = await db.execute(
-            select(RoundPlayer)
-            .where(RoundPlayer.round_id == round_obj.id)
-        )
-        round_players = list(result.scalars().all())
+        # Use preloaded relationship instead of separate query
+        round_players = round_obj.players
 
         for rp in round_players:
             user_id_str = str(rp.user_id)
@@ -204,11 +215,26 @@ async def end_game(
     for gp in game_players:
         gp.final_score = final_scores.get(str(gp.user_id), 0)
 
-    # Determine winner (highest score)
+    # Determine winner (highest score), detect ties
     winner_id = None
     if final_scores:
-        winner_id_str = max(final_scores, key=final_scores.get)
-        winner_id = UUID(winner_id_str)
+        max_score = max(final_scores.values())
+        winners = [user_id for user_id, score in final_scores.items() if score == max_score]
+
+        if len(winners) == 1:
+            winner_id = UUID(winners[0])
+        # If len(winners) > 1, it's a tie, leave winner_id = None
+
+    # Update is_winner flag for all players
+    if winner_id:
+        for gp in game_players:
+            gp.is_winner = (gp.user_id == winner_id)
+
+    # Log winner determination
+    if winner_id:
+        logger.info("Game %s ended - winner: %s", game_id, winner_id)
+    else:
+        logger.info("Game %s ended - tie or no scores", game_id)
 
     # Update game status
     game.status = GameStatus.FINISHED
