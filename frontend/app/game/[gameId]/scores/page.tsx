@@ -40,7 +40,9 @@ export default function ScoreTablePage({
         const data = await response.json();
         setScoreData(data);
       } catch (err) {
-        console.error('Error fetching score table:', err);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error fetching score table:', err);
+        }
         setError(err instanceof Error ? err.message : 'Failed to load scores');
       } finally {
         setIsLoading(false);
@@ -68,7 +70,9 @@ export default function ScoreTablePage({
       // Navigate back to game page
       router.push(`/game/${gameId}`);
     } catch (err) {
-      console.error('Error starting next round:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error starting next round:', err);
+      }
       setError(err instanceof Error ? err.message : 'Failed to start next round');
     } finally {
       setIsStartingRound(false);
@@ -89,12 +93,13 @@ export default function ScoreTablePage({
       }
 
       const result = await response.json();
-      console.log('Game ended:', result);
 
       // TODO: Navigate to game results/summary page
       router.push(`/game/${gameId}`);
     } catch (err) {
-      console.error('Error ending game:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error ending game:', err);
+      }
       setError(err instanceof Error ? err.message : 'Failed to end game');
     } finally {
       setIsEndingGame(false);
@@ -157,12 +162,13 @@ export default function ScoreTablePage({
         {/* Score Table */}
         <Card variant="elevated" className="overflow-x-auto">
           <table className="w-full border-collapse">
+            <caption className="sr-only">Score table showing all completed rounds with player scores</caption>
             <thead>
               <tr className="border-b-2 border-gray-300">
-                <th className="p-3 text-left font-semibold text-gray-700">Round</th>
-                <th className="p-3 text-center font-semibold text-gray-700">Trump</th>
+                <th scope="col" className="p-3 text-left font-semibold text-gray-700">Round</th>
+                <th scope="col" className="p-3 text-center font-semibold text-gray-700">Trump</th>
                 {scoreData.players.map((player) => (
-                  <th key={player.user_id} className="p-3 text-center font-semibold text-gray-700">
+                  <th key={player.user_id} scope="col" className="p-3 text-center font-semibold text-gray-700">
                     {player.display_name}
                   </th>
                 ))}
@@ -208,18 +214,20 @@ export default function ScoreTablePage({
           <Button
             onClick={handleNewRound}
             disabled={isStartingRound || isEndingGame}
+            loading={isStartingRound}
             variant="primary"
             className="min-w-[180px]"
           >
-            {isStartingRound ? '⏳ Starting...' : '▶ NEW ROUND'}
+            NEW ROUND
           </Button>
           <Button
             onClick={handleEndGame}
             disabled={isStartingRound || isEndingGame}
+            loading={isEndingGame}
             variant="secondary"
             className="min-w-[180px]"
           >
-            {isEndingGame ? '⏳ Ending...' : '🏁 END GAME'}
+            END GAME
           </Button>
         </div>
 
