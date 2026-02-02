@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.dependencies.auth import CurrentUser, DBSession
 from app.models.base import RoundPhase
@@ -40,6 +41,12 @@ async def get_score_table(
 
     Returns all completed rounds with player scores and cumulative totals.
     """
+    logger.info(
+        "Score table requested for game %s by user %s",
+        game_id,
+        current_user.id
+    )
+
     # Get game
     result = await db.execute(
         select(Game)
@@ -58,11 +65,19 @@ async def get_score_table(
     )
     game_players = list(result.scalars().all())
 
+    # Verify user is a player in this game
+    if not any(gp.user_id == current_user.id for gp in game_players):
+        raise HTTPException(
+            status_code=403,
+            detail="You are not a player in this game"
+        )
+
     # Get all completed rounds with players
     result = await db.execute(
         select(Round)
         .where(Round.game_id == game_id)
         .where(Round.phase == RoundPhase.COMPLETE)
+        .options(selectinload(Round.players))
         .order_by(Round.round_number)
     )
     rounds = list(result.scalars().all())
@@ -70,22 +85,18 @@ async def get_score_table(
     # Build rounds data
     rounds_data = []
     cumulative_scores: dict[str, int] = {str(gp.user_id): 0 for gp in game_players}
+    player_names = {gp.user_id: gp.display_name for gp in game_players}
 
     for round_obj in rounds:
-        # Get round players
-        result = await db.execute(
-            select(RoundPlayer)
-            .where(RoundPlayer.round_id == round_obj.id)
-            .order_by(RoundPlayer.seat_position)
-        )
-        round_players = list(result.scalars().all())
+        # Get round players from eager-loaded relationship
+        round_players = sorted(round_obj.players, key=lambda rp: rp.seat_position)
 
         # Build player scores
         player_scores = []
         for rp in round_players:
             player_scores.append(PlayerRoundScore(
                 user_id=str(rp.user_id),
-                display_name=next(gp.display_name for gp in game_players if gp.user_id == rp.user_id),
+                display_name=player_names.get(rp.user_id, "Unknown"),
                 seat_position=rp.seat_position,
                 contract_bid=rp.contract_bid or 0,
                 tricks_won=rp.tricks_won,
