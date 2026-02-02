@@ -1,5 +1,6 @@
 """Game-related API endpoints."""
 import logging
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
@@ -7,11 +8,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.dependencies.auth import CurrentUser, DBSession
-from app.models.base import RoundPhase
+from app.models.base import GameStatus, RoundPhase
 from app.models.game import Game, GamePlayer
 from app.models.round import Round, RoundPlayer
 from app.schemas.errors import ErrorResponse
 from app.schemas.score import (
+    EndGameResponse,
     PlayerInfo,
     PlayerRoundScore,
     RoundScore,
@@ -131,4 +133,93 @@ async def get_score_table(
         rounds=rounds_data,
         cumulative_scores=cumulative_scores,
         players=players_info,
+    )
+
+
+@router.post(
+    "/{game_id}/end",
+    response_model=EndGameResponse,
+    responses={
+        200: {"description": "Game ended"},
+        401: {"description": "Unauthorized", "model": ErrorResponse},
+        403: {"description": "Not admin", "model": ErrorResponse},
+        404: {"description": "Game not found", "model": ErrorResponse},
+    },
+)
+async def end_game(
+    game_id: UUID,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> EndGameResponse:
+    """End the game and calculate final scores.
+
+    Sets game status to FINISHED, calculates final player scores,
+    and determines the winner.
+    """
+    # Get game
+    result = await db.execute(
+        select(Game)
+        .where(Game.id == game_id)
+    )
+    game = result.scalar_one_or_none()
+
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    # Check authorization (only admin can end game)
+    if game.admin_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only admin can end game")
+
+    # Get all completed rounds
+    result = await db.execute(
+        select(Round)
+        .where(Round.game_id == game_id)
+        .where(Round.phase == RoundPhase.COMPLETE)
+    )
+    rounds = list(result.scalars().all())
+
+    # Calculate final scores for each player
+    final_scores: dict[str, int] = {}
+
+    for round_obj in rounds:
+        result = await db.execute(
+            select(RoundPlayer)
+            .where(RoundPlayer.round_id == round_obj.id)
+        )
+        round_players = list(result.scalars().all())
+
+        for rp in round_players:
+            user_id_str = str(rp.user_id)
+            if user_id_str not in final_scores:
+                final_scores[user_id_str] = 0
+            final_scores[user_id_str] += rp.score or 0
+
+    # Update GamePlayer records with final scores
+    result = await db.execute(
+        select(GamePlayer)
+        .where(GamePlayer.game_id == game_id)
+    )
+    game_players = list(result.scalars().all())
+
+    for gp in game_players:
+        gp.final_score = final_scores.get(str(gp.user_id), 0)
+
+    # Determine winner (highest score)
+    winner_id = None
+    if final_scores:
+        winner_id_str = max(final_scores, key=final_scores.get)
+        winner_id = UUID(winner_id_str)
+
+    # Update game status
+    game.status = GameStatus.FINISHED
+    game.ended_at = datetime.utcnow()
+    game.winner_id = winner_id
+
+    await db.commit()
+
+    return EndGameResponse(
+        game_id=str(game.id),
+        ended_at=game.ended_at.isoformat(),
+        winner_id=str(winner_id) if winner_id else None,
+        final_scores=final_scores,
     )
