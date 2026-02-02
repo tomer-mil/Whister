@@ -1039,7 +1039,9 @@ async def complete_round(
 
             async with db_manager.session() as db:
                 # Fetch all RoundPlayer records in one query (eliminates N+1 queries)
-                player_ids = [p["player_id"] for p in player_results]
+                # Convert player_ids from strings to UUIDs for database query
+                player_ids = [UUID(p["player_id"]) if isinstance(p["player_id"], str) else p["player_id"]
+                             for p in player_results]
                 result = await db.execute(
                     select(RoundPlayer)
                     .where(RoundPlayer.round_id == round_uuid)
@@ -1049,7 +1051,9 @@ async def complete_round(
 
                 # Update each player
                 for player_result in player_results:
-                    round_player = round_players.get(player_result["player_id"])
+                    # Convert player_id to UUID for consistent lookup
+                    player_id = UUID(player_result["player_id"]) if isinstance(player_result["player_id"], str) else player_result["player_id"]
+                    round_player = round_players.get(player_id)
                     if not round_player:
                         logger.error(
                             "RoundPlayer not found: round_id=%s, user_id=%s",
