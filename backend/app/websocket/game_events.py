@@ -4,7 +4,10 @@ import logging
 from typing import Any
 
 import socketio  # type: ignore
+from sqlalchemy import select
 
+from app.core.database import db_manager
+from app.models.round import RoundPlayer
 from app.schemas.game import GameType, RoundPhase, TrumpSuit
 from app.services.bidding_service import BiddingService
 from app.services.scoring_service import ScoringService
@@ -1026,6 +1029,26 @@ async def complete_round(
                 "round_score": score,
                 "made_contract": made_contract,
             })
+
+        # Persist scores to database
+        round_id = round_data.get("round_id")
+        if round_id:
+            async with db_manager.session() as db:
+                for player_result in player_results:
+                    # Get RoundPlayer record
+                    result = await db.execute(
+                        select(RoundPlayer)
+                        .where(RoundPlayer.round_id == round_id)
+                        .where(RoundPlayer.user_id == player_result["player_id"])
+                    )
+                    round_player = result.scalar_one()
+
+                    # Update with calculated scores
+                    round_player.score = player_result["round_score"]
+                    round_player.made_contract = player_result["made_contract"]
+                    round_player.tricks_won = player_result["tricks_won"]
+
+                await db.commit()
 
         # Update phase to round_complete
         await room_manager.redis.hset(
