@@ -119,7 +119,7 @@ export function RoundSummaryModal({
                     fullWidth
                     className="mt-2"
                   >
-                    {isLoading ? '⏳ Starting new round...' : '▶ Continue to Next Round'}
+                    {isLoading ? '⏳ Loading...' : '📊 View Score Table'}
                   </Button>
                 </motion.div>
               </div>

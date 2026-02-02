@@ -7,6 +7,7 @@
 'use client';
 
 import React, { useCallback, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useStore } from '@/stores';
 import { Card } from '@/components/ui/card';
 import { ConnectionStatus } from '@/components/shared/connection-status';
@@ -25,7 +26,8 @@ export default function GamePage({
 }: {
   params: Promise<{ gameId: string }>;
 }) {
-  const { gameId: _gameId } = React.use(params);
+  const { gameId } = React.use(params);
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -209,29 +211,10 @@ export default function GamePage({
   }, [undoTrick]);
 
   // Handle continue to next round
-  const handleContinueRound = useCallback(async () => {
-    if (!roomCode) return;
-
-    setIsLoading(true);
-    try {
-      const response = await fetch(`/api/v1/rooms/${roomCode}/next-round`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to start next round');
-      }
-
-      console.log('Next round started successfully');
-    } catch (err) {
-      console.error('Failed to start next round:', err);
-      setError(err instanceof Error ? err.message : 'Failed to start next round');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [roomCode]);
+  const handleContinueRound = useCallback(() => {
+    // Navigate to score table instead of starting next round
+    router.push(`/game/${gameId}/scores`);
+  }, [router, gameId]);
 
   // Convert round results for modal
   const getRoundResults = useCallback(() => {
