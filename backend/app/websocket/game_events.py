@@ -7,7 +7,7 @@ import socketio  # type: ignore
 from sqlalchemy import select
 
 from app.core.database import db_manager
-from app.models.round import RoundPlayer
+from app.models.round import Round, RoundPlayer
 from app.schemas.game import GameType, RoundPhase, TrumpSuit
 from app.services.bidding_service import BiddingService
 from app.services.scoring_service import ScoringService
@@ -1034,23 +1034,42 @@ async def complete_round(
         round_id = round_data.get("round_id")
         if round_id:
             async with db_manager.session() as db:
+                # Fetch all RoundPlayer records in one query (eliminates N+1 queries)
+                player_ids = [p["player_id"] for p in player_results]
+                result = await db.execute(
+                    select(RoundPlayer)
+                    .where(RoundPlayer.round_id == round_id)
+                    .where(RoundPlayer.user_id.in_(player_ids))
+                )
+                round_players = {rp.user_id: rp for rp in result.scalars().all()}
+
+                # Update each player
                 for player_result in player_results:
-                    # Get RoundPlayer record
-                    result = await db.execute(
-                        select(RoundPlayer)
-                        .where(RoundPlayer.round_id == round_id)
-                        .where(RoundPlayer.user_id == player_result["player_id"])
-                    )
-                    round_player = result.scalar_one()
+                    round_player = round_players.get(player_result["player_id"])
+                    if not round_player:
+                        logger.error(
+                            "RoundPlayer not found: round_id=%s, user_id=%s",
+                            round_id,
+                            player_result["player_id"],
+                        )
+                        continue  # Skip this player
 
                     # Update with calculated scores
                     round_player.score = player_result["round_score"]
                     round_player.made_contract = player_result["made_contract"]
                     round_player.tricks_won = player_result["tricks_won"]
 
-                await db.commit()
+                # Update Round phase in database
+                round_result = await db.execute(
+                    select(Round).where(Round.id == round_id)
+                )
+                round_obj = round_result.scalar_one_or_none()
+                if round_obj:
+                    round_obj.phase = RoundPhase.COMPLETE
+                else:
+                    logger.error("Round not found: round_id=%s", round_id)
 
-        # Update phase to round_complete
+        # Update phase to round_complete in Redis
         await room_manager.redis.hset(
             f"room:{room_code}:round",
             "phase",
