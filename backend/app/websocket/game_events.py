@@ -1033,12 +1033,16 @@ async def complete_round(
         # Persist scores to database
         round_id = round_data.get("round_id")
         if round_id:
+            from uuid import UUID
+            # Convert round_id from string (Redis) to UUID for database query
+            round_uuid = UUID(round_id)
+
             async with db_manager.session() as db:
                 # Fetch all RoundPlayer records in one query (eliminates N+1 queries)
                 player_ids = [p["player_id"] for p in player_results]
                 result = await db.execute(
                     select(RoundPlayer)
-                    .where(RoundPlayer.round_id == round_id)
+                    .where(RoundPlayer.round_id == round_uuid)
                     .where(RoundPlayer.user_id.in_(player_ids))
                 )
                 round_players = {rp.user_id: rp for rp in result.scalars().all()}
@@ -1061,13 +1065,13 @@ async def complete_round(
 
                 # Update Round phase in database
                 round_result = await db.execute(
-                    select(Round).where(Round.id == round_id)
+                    select(Round).where(Round.id == round_uuid)
                 )
                 round_obj = round_result.scalar_one_or_none()
                 if round_obj:
                     round_obj.phase = RoundPhase.COMPLETE
                 else:
-                    logger.error("Round not found: round_id=%s", round_id)
+                    logger.error("Round not found: round_id=%s", round_uuid)
 
         # Update phase to round_complete in Redis
         await room_manager.redis.hset(
