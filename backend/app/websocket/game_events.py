@@ -1063,6 +1063,7 @@ async def complete_round(
                         continue  # Skip this player
 
                     # Update with calculated scores
+                    round_player.contract_bid = player_result["contract"]
                     round_player.score = player_result["round_score"]
                     round_player.made_contract = player_result["made_contract"]
                     round_player.tricks_won = player_result["tricks_won"]
