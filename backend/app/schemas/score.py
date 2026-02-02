@@ -1,6 +1,8 @@
 """Score table response schemas."""
 from pydantic import BaseModel, Field
 
+from app.schemas.game import GameType, TrumpSuit
+
 
 class PlayerRoundScore(BaseModel):
     """Player's score for a single round."""
@@ -18,17 +20,17 @@ class RoundScore(BaseModel):
     """Complete round with all player scores."""
 
     round_number: int = Field(ge=1, description="Round number")
-    trump_suit: str = Field(description="Trump suit (clubs/diamonds/hearts/spades/no_trump)")
-    game_type: str = Field(description="Game type (over/under)")
+    trump_suit: TrumpSuit = Field(description="Trump suit")
+    game_type: GameType = Field(description="Game type")
     players: list[PlayerRoundScore] = Field(description="Player scores for this round")
 
 
 class PlayerInfo(BaseModel):
     """Basic player information."""
 
-    user_id: str
-    display_name: str
-    seat_position: int
+    user_id: str = Field(description="Player user ID")
+    display_name: str = Field(description="Player display name")
+    seat_position: int = Field(ge=0, le=3, description="Seat position (0-3)")
 
 
 class ScoreTableResponse(BaseModel):
@@ -45,7 +47,7 @@ class ScoreTableResponse(BaseModel):
 class EndGameResponse(BaseModel):
     """Response after ending a game."""
 
-    game_id: str
-    ended_at: str  # ISO datetime string
-    winner_id: str | None
-    final_scores: dict[str, int]
+    game_id: str = Field(description="Game UUID")
+    ended_at: str = Field(description="ISO 8601 datetime string")
+    winner_id: str | None = Field(description="Winner's user ID, null if tie")
+    final_scores: dict[str, int] = Field(description="Final scores by user_id")
