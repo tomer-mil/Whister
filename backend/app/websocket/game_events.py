@@ -1068,13 +1068,15 @@ async def complete_round(
                     round_player.made_contract = player_result["made_contract"]
                     round_player.tricks_won = player_result["tricks_won"]
 
-                # Update Round phase in database
+                # Update Round phase and game data in database
                 round_result = await db.execute(
                     select(Round).where(Round.id == round_uuid)
                 )
                 round_obj = round_result.scalar_one_or_none()
                 if round_obj:
                     round_obj.phase = RoundPhase.COMPLETE
+                    round_obj.trump_suit = trump_suit
+                    round_obj.game_type = game_type
                 else:
                     logger.error("Round not found: round_id=%s", round_uuid)
 
