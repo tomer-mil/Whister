@@ -62,7 +62,10 @@
       "Bash(python -c:*)",
       "Bash(wc:*)",
       "Bash(git diff:*)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(npx playwright install:*)",
+      "Bash(cd:*)",
+      "Bash(npx playwright test --list)"
     ],
     "additionalDirectories": [
       "/Users/tomer.mildworth/personal/Whister/frontend-app/{app,components/{ui,layout,room,bidding,game,scores,shared},hooks,lib/{socket,api,validation,utils},stores/slices"

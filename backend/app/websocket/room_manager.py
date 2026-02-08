@@ -147,6 +147,10 @@ class RoomManager:
                             room_code, user_id, socket_id, existing_seat
                         )
 
+                        # Get current round number
+                        dup_round_data = await self.get_room_round_state(room_code)
+                        dup_round_number = int(dup_round_data["round_number"]) if dup_round_data.get("round_number") else None
+
                         logger.info(
                             "Duplicate join resolved for user %s in room %s (seat %d)",
                             user_id,
@@ -161,7 +165,7 @@ class RoomManager:
                             players=players,
                             player_info=player_info,
                             phase=room_data["status"],
-                            current_round=None,
+                            current_round=dup_round_number,
                         )
 
             # If still not joined after wait, this might be a legitimate concurrent request
@@ -195,6 +199,10 @@ class RoomManager:
 
             # Get players
             players = await self._get_room_players(room_code)
+
+            # Get current round number from round state
+            round_data = await self.get_room_round_state(room_code)
+            current_round_number = int(round_data["round_number"]) if round_data.get("round_number") else None
 
             # Check if player already in room BEFORE checking if room is full
             # (player might be the 4th player who joined via REST API)
@@ -232,7 +240,7 @@ class RoomManager:
                     players=players,
                     player_info=player_info,
                     phase=room_data["status"],
-                    current_round=None,
+                    current_round=current_round_number,
                 )
 
             # Now check if room is full (only for truly new players)
@@ -273,7 +281,7 @@ class RoomManager:
                 players=updated_players,
                 player_info=player_info,
                 phase=room_data["status"],
-                current_round=None,
+                current_round=current_round_number,
             )
         finally:
             # Release join lock if we acquired it

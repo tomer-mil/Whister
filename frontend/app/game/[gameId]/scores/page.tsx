@@ -7,6 +7,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useStore } from '@/stores';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { ScoreTableResponse } from '@/types/score';
@@ -51,6 +52,30 @@ export default function ScoreTablePage({
 
     fetchScoreTable();
   }, [gameId]);
+
+  // Restore room code in store after score data is fetched
+  // This is needed after a full page reload (e.g., p.goto in tests)
+  // where the non-persisted store state (roomCode, players) is lost
+  useEffect(() => {
+    if (!scoreData?.room_code) return;
+
+    const store = useStore.getState();
+    if (!store.roomCode) {
+      console.log('[ScoresPage] Restoring roomCode in store:', scoreData.room_code);
+      store.setRoomData({
+        roomCode: scoreData.room_code,
+        roomId: gameId,
+        isAdmin: false,
+        players: scoreData.players.map((p) => ({
+          userId: p.user_id,
+          displayName: p.display_name,
+          seatPosition: p.seat_position,
+          isConnected: true,
+          isAdmin: false,
+        })),
+      });
+    }
+  }, [scoreData, gameId]);
 
   // Handle starting new round
   const handleNewRound = async () => {
