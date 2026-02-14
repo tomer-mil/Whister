@@ -11,6 +11,7 @@ export type TrumpSuit = 'clubs' | 'diamonds' | 'hearts' | 'spades' | 'no_trump';
 
 export type GameStatus =
   | 'waiting'
+  | 'seating'
   | 'bidding_trump'
   | 'frisch'
   | 'bidding_contract'

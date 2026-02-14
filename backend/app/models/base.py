@@ -61,6 +61,7 @@ class GameStatus(str, Enum):
     """Game lifecycle states."""
 
     WAITING = "waiting"
+    SEATING = "seating"
     BIDDING_TRUMP = "bidding_trump"
     FRISCH = "frisch"
     BIDDING_CONTRACT = "bidding_contract"

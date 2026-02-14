@@ -12,6 +12,7 @@ class GamePhase(str, Enum):
     """Game phase enumeration."""
 
     WAITING = "waiting"
+    SEATING = "seating"
     BIDDING_TRUMP = "bidding_trump"
     FRISCH = "frisch"
     BIDDING_CONTRACT = "bidding_contract"
