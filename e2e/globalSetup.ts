@@ -47,7 +47,7 @@ export default async function globalSetup() {
         .waitForFunction(() => window.location.pathname === '/', { timeout: 15_000 })
         .then(() => 'ok' as const),
       page
-        .waitForSelector('.bg-destructive', { timeout: 15_000 })
+        .waitForSelector('.text-terracotta', { timeout: 15_000 })
         .then((el) => el!.textContent())
         .then((msg) => ({ error: msg }) as const),
     ]);
