@@ -131,6 +131,20 @@ export interface GameStartingPayload {
   timestamp?: string;
 }
 
+/** Payload for game:seating_updated event - server broadcasts after admin swaps */
+export interface SeatingUpdatedPayload {
+  players: PlayerInfo[];
+  timestamp?: string;
+}
+
+/** Payload for game:seating_set event - server broadcasts when admin confirms seating */
+export interface SeatingSetPayload {
+  players: PlayerInfo[];
+  game_id: string;
+  first_bidder_id: string;
+  timestamp?: string;
+}
+
 // ============================================================
 // Payload Types - Bidding Events
 // ============================================================
@@ -289,6 +303,16 @@ export interface ClientToServerEvents {
     callback?: (response: SocketResponse) => void
   ) => void;
 
+  // Seating events
+  'game:seating_swap': (
+    data: { room_code: string; player_a_id: string; player_b_id: string },
+    callback?: (response: SocketResponse) => void
+  ) => void;
+  'game:seating_confirmed': (
+    data: { room_code: string },
+    callback?: (response: SocketResponse) => void
+  ) => void;
+
   // Bidding events - all require room_code per backend schemas
   'bid:trump': (
     data: { room_code: string; amount: number; suit: TrumpSuit },
@@ -334,6 +358,10 @@ export interface ServerToClientEvents {
   'room:player_disconnected': (payload: PlayerDisconnectedPayload) => void;
   'room:player_reconnected': (payload: PlayerReconnectedPayload) => void;
   'room:game_starting': (payload: GameStartingPayload) => void;
+
+  // Seating events
+  'game:seating_updated': (payload: SeatingUpdatedPayload) => void;
+  'game:seating_set': (payload: SeatingSetPayload) => void;
 
   // Bidding events - using backend event names
   'bid:your_turn': (payload: BidYourTurnPayload) => void;
