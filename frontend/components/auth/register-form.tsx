@@ -1,7 +1,3 @@
-/**
- * Register Form Component
- */
-
 'use client';
 
 import { useState } from 'react';
@@ -10,7 +6,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { registerSchema, type RegisterFormData } from '@/lib/validation/schemas';
 import { useAuth } from '@/hooks/use-auth';
 import Link from 'next/link';
@@ -34,7 +29,6 @@ export function RegisterForm() {
 
     try {
       await registerUser(data);
-      // Redirect to home on success
       router.push('/');
     } catch (error) {
       const errorMessage =
@@ -44,88 +38,80 @@ export function RegisterForm() {
   };
 
   return (
-    <Card variant="elevated">
-      <CardHeader>
-        <CardTitle className="text-center">Create Account</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* Server Error */}
-          {serverError && (
-            <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-lg">
-              {serverError}
-            </div>
-          )}
+    <div>
+      {/* Wordmark with geometric accent */}
+      <div className="text-center mb-12">
+        <div className="flex items-center justify-center gap-3 mb-2">
+          <div className="w-3 h-3 bg-terracotta rotate-45" />
+          <h1 className="text-4xl font-bold uppercase tracking-[0.2em]">
+            WHISTER
+          </h1>
+          <div className="w-3 h-3 bg-ochre" />
+        </div>
+      </div>
 
-          {/* Username Input */}
-          <Input
-            label="Username"
-            type="text"
-            placeholder="john_doe"
-            helperText="3-32 characters, letters, numbers, underscores, hyphens"
-            error={errors.username?.message}
-            {...register('username')}
-          />
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {serverError && (
+          <p className="text-sm text-terracotta text-center">{serverError}</p>
+        )}
 
-          {/* Display Name Input */}
-          <Input
-            label="Display Name"
-            type="text"
-            placeholder="John Doe"
-            error={errors.displayName?.message}
-            {...register('displayName')}
-          />
+        <Input
+          type="text"
+          placeholder="Username"
+          error={errors.username?.message}
+          {...register('username')}
+        />
 
-          {/* Email Input */}
-          <Input
-            label="Email"
-            type="email"
-            placeholder="your@email.com"
-            error={errors.email?.message}
-            {...register('email')}
-          />
+        <Input
+          type="text"
+          placeholder="Display Name"
+          error={errors.displayName?.message}
+          {...register('displayName')}
+        />
 
-          {/* Password Input */}
-          <Input
-            label="Password"
-            type="password"
-            placeholder="••••••••"
-            helperText="Must be at least 8 characters with uppercase, lowercase, and number"
-            error={errors.password?.message}
-            {...register('password')}
-          />
+        <Input
+          type="email"
+          placeholder="Email"
+          error={errors.email?.message}
+          {...register('email')}
+        />
 
-          {/* Confirm Password Input */}
-          <Input
-            label="Confirm Password"
-            type="password"
-            placeholder="••••••••"
-            error={errors.confirmPassword?.message}
-            {...register('confirmPassword')}
-          />
+        <Input
+          type="password"
+          placeholder="Password"
+          error={errors.password?.message}
+          {...register('password')}
+        />
 
-          {/* Submit Button */}
+        <Input
+          type="password"
+          placeholder="Confirm Password"
+          error={errors.confirmPassword?.message}
+          {...register('confirmPassword')}
+        />
+
+        <div className="pt-4">
           <Button
             type="submit"
             fullWidth
+            size="lg"
             disabled={isLoading}
           >
-            {isLoading ? 'Creating Account...' : 'Create Account'}
+            {isLoading ? 'Creating...' : 'Create Account'}
           </Button>
+        </div>
 
-          {/* Login Link */}
-          <p className="text-center text-sm text-muted-foreground">
-            Already have an account?{' '}
-            <Link
-              href="/login"
-              className="text-primary hover:text-primary-hover font-medium"
-            >
-              Sign in here
-            </Link>
-          </p>
-        </form>
-      </CardContent>
-    </Card>
+        <p className="text-center text-sm text-muted-foreground">
+          Have an account?{' '}
+          <Link
+            href="/login"
+            className="text-foreground font-semibold uppercase tracking-[0.05em] hover:underline"
+          >
+            Sign In
+          </Link>
+        </p>
+      </form>
+    </div>
   );
 }
 
