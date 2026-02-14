@@ -268,11 +268,11 @@ export default function SeatingPage({
 
           {/* Center button (admin only) */}
           {isAdmin && (
-            <div className="absolute inset-0 flex items-center justify-center z-10">
+            <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
               <Button
                 onClick={handleConfirmSeating}
                 disabled={isConfirming}
-                className="rounded-full w-24 h-24 sm:w-28 sm:h-28 text-sm font-bold shadow-lg whitespace-pre-line"
+                className="rounded-full w-24 h-24 sm:w-28 sm:h-28 text-sm font-bold shadow-lg whitespace-pre-line pointer-events-auto"
               >
                 {isConfirming ? 'Setting...' : 'Set\nSeating'}
               </Button>
