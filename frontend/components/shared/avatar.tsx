@@ -2,13 +2,14 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils/cn';
+import { PlayerShape } from '@/components/ui/player-shape';
 
-interface AvatarProps extends React.ImgHTMLAttributes<HTMLImageElement> {
-  src?: string;
+interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
   alt: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
-  fallback?: React.ReactNode;
   initials?: string;
+  /** Player index for geometric shape display */
+  playerIndex?: number;
 }
 
 const sizeClasses = {
@@ -18,60 +19,48 @@ const sizeClasses = {
   xl: 'w-16 h-16 text-lg',
 };
 
+const shapeSizes = {
+  sm: 20,
+  md: 24,
+  lg: 32,
+  xl: 40,
+};
+
 export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
   (
     {
-      src,
       alt,
       size = 'md',
-      fallback,
       initials,
+      playerIndex,
       className,
       ...props
     },
     ref
   ) => {
-    const [isLoading, setIsLoading] = React.useState(true);
-    const [hasError, setHasError] = React.useState(false);
-
-    const showImage = src && !hasError && !isLoading;
-    const showFallback = !showImage;
-
     return (
       <div
         ref={ref}
         className={cn(
-          'relative flex items-center justify-center rounded-full ' +
-          'overflow-hidden bg-gradient-to-br from-primary/80 to-primary ' +
+          'relative flex items-center justify-center ' +
+          'overflow-hidden bg-foreground ' +
           'flex-shrink-0',
           sizeClasses[size],
           className
         )}
         {...props}
       >
-        {showImage && (
-          <img
-            src={src}
-            alt={alt}
-            className="w-full h-full object-cover"
-            onLoad={() => setIsLoading(false)}
-            onError={() => {
-              setIsLoading(false);
-              setHasError(true);
-            }}
+        {playerIndex !== undefined ? (
+          <PlayerShape
+            playerIndex={playerIndex}
+            size={shapeSizes[size]}
+            filled={true}
+            color="hsl(var(--background))"
           />
-        )}
-
-        {showFallback && (
-          <div className="flex items-center justify-center w-full h-full">
-            {fallback ? (
-              fallback
-            ) : (
-              <span className="font-semibold text-white select-none">
-                {initials || alt.charAt(0).toUpperCase()}
-              </span>
-            )}
-          </div>
+        ) : (
+          <span className="font-semibold text-background select-none">
+            {initials || alt.charAt(0).toUpperCase()}
+          </span>
         )}
       </div>
     );

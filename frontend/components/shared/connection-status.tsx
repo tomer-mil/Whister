@@ -9,19 +9,19 @@ export function ConnectionStatus() {
 
   const statusConfig = {
     connected: {
-      color: 'bg-emerald-500',
+      color: 'bg-success',
       text: 'Connected',
     },
     connecting: {
-      color: 'bg-amber-500',
+      color: 'bg-ochre',
       text: 'Connecting...',
     },
     disconnected: {
-      color: 'bg-red-500',
+      color: 'bg-terracotta',
       text: 'Disconnected',
     },
     reconnecting: {
-      color: 'bg-amber-500',
+      color: 'bg-ochre',
       text: 'Reconnecting...',
     },
   };
@@ -31,7 +31,7 @@ export function ConnectionStatus() {
   return (
     <div className="flex items-center gap-2">
       <motion.div
-        className={`w-2.5 h-2.5 rounded-full ${config.color}`}
+        className={`w-2.5 h-2.5 ${config.color}`}
         variants={connectionPulseVariants}
         animate={status}
       />
