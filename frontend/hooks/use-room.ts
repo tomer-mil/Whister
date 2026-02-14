@@ -123,9 +123,18 @@ export function useRoom(_options: UseRoomOptions = {}) {
         // NOTE: Backend sends GameStatus enum values, we map to RoundPhase values for internal state
         if (payload.phase && ['seating', 'bidding_trump', 'bidding_contract', 'playing', 'frisch'].includes(payload.phase)) {
           const store = useStore.getState();
+          // Map GameStatus phase to store status
+          const statusMap: Record<string, string> = {
+            seating: 'seating',
+            bidding_trump: 'bidding_trump',
+            frisch: 'frisch',
+            bidding_contract: 'bidding_contract',
+            playing: 'playing',
+          };
           store.setGameState({
             gameId: payload.game_id,
             currentRound: payload.current_round ?? 1,
+            status: (statusMap[payload.phase] ?? payload.phase) as any,
             gamePlayers: payload.players.map((p) => ({
               userId: p.user_id,
               displayName: p.display_name,

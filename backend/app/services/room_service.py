@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 from redis.asyncio import Redis  # type: ignore
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
@@ -383,26 +383,43 @@ class RoomService:
                 ErrorCode.VALIDATION_ERROR,
             )
 
-        # Update database with new positions
-        for new_seat, user_id in enumerate(request.positions):
-            for player in current_players:
-                if player.user_id == user_id:
-                    player.seat_position = new_seat
+        # Build user_id -> new_seat mapping
+        new_positions = {
+            user_id: new_seat
+            for new_seat, user_id in enumerate(request.positions)
+        }
 
-        await self.db.flush()
-
-        # Update Redis
-        players_data = await self.redis.hgetall(f"room:{room_code}:players")
-        new_players_data: dict[str, str] = {}
-
-        for player in current_players:
-            player_json = players_data.get(str(player.seat_position))
-            if player_json:
-                player_dict = json.loads(player_json)
-                player_dict["seat_position"] = player.seat_position
-                new_players_data[str(player.seat_position)] = json.dumps(
-                    player_dict
+        # Update database atomically with CASE to avoid unique constraint violations
+        await self.db.execute(
+            update(GamePlayer)
+            .where(GamePlayer.game_id == game_id)
+            .values(
+                seat_position=case(
+                    *[
+                        (GamePlayer.user_id == uid, seat)
+                        for uid, seat in new_positions.items()
+                    ],
+                    else_=GamePlayer.seat_position,
                 )
+            )
+        )
+        await self.db.flush()
+        self.db.expire_all()
+
+        # Update Redis: build a lookup by user_id from old data, then rewrite with new positions
+        players_data = await self.redis.hgetall(f"room:{room_code}:players")
+        players_by_user_id: dict[str, dict] = {}
+        for _seat_key, data in players_data.items():
+            player_dict = json.loads(data)
+            players_by_user_id[player_dict["user_id"]] = player_dict
+
+        new_players_data: dict[str, str] = {}
+        for user_id, new_seat in new_positions.items():
+            uid_str = str(user_id)
+            if uid_str in players_by_user_id:
+                player_dict = players_by_user_id[uid_str]
+                player_dict["seat_position"] = new_seat
+                new_players_data[str(new_seat)] = json.dumps(player_dict)
 
         await self.redis.delete(f"room:{room_code}:players")
         if new_players_data:
@@ -525,19 +542,32 @@ class RoomService:
             player_info = PlayerInfo.model_validate_json(data)
             redis_players[player_info.user_id] = player_info.seat_position
 
-        # Update GamePlayer records in DB with final seat positions from Redis
-        result = await self.db.execute(
-            select(GamePlayer)
-            .where(GamePlayer.game_id == game_id)
-            .order_by(GamePlayer.seat_position)
-        )
-        game_players = list(result.scalars().all())
+        if len(redis_players) != 4:
+            raise ValidationError(
+                f"Expected 4 players for seating, found {len(redis_players)}",
+                ErrorCode.VALIDATION_ERROR,
+            )
 
-        for gp in game_players:
-            new_seat = redis_players.get(str(gp.user_id))
-            if new_seat is not None:
-                gp.seat_position = new_seat
-        await self.db.flush()
+        # Update GamePlayer records in DB with final seat positions from Redis.
+        # Use a single UPDATE with CASE to avoid unique constraint violations
+        # on (game_id, seat_position) that occur with per-row updates.
+        if redis_players:
+            await self.db.execute(
+                update(GamePlayer)
+                .where(GamePlayer.game_id == game_id)
+                .values(
+                    seat_position=case(
+                        *[
+                            (GamePlayer.user_id == UUID(uid), seat)
+                            for uid, seat in redis_players.items()
+                        ],
+                        else_=GamePlayer.seat_position,
+                    )
+                )
+            )
+            await self.db.flush()
+            # Expire cached ORM instances so re-fetch gets updated values
+            self.db.expire_all()
 
         # Re-fetch ordered by new seat positions
         result = await self.db.execute(
