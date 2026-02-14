@@ -1,15 +1,10 @@
-/**
- * Trump Bidding Panel Component
- * Main bidding interface during trump bidding phase
- */
-
 'use client';
 
 import { useStore } from '@/stores';
 import { BidHistoryTimeline } from './bid-history-timeline';
 import { ActiveBiddingControls } from './active-bidding-controls';
 import { WaitingForBidder } from './waiting-for-bidder';
-import { Card } from '@/components/ui/card';
+import { PhaseIndicator } from '@/components/ui/phase-indicator';
 import type { TrumpSuit } from '@/types/game';
 
 export interface TrumpBiddingPanelProps {
@@ -19,7 +14,6 @@ export interface TrumpBiddingPanelProps {
 }
 
 export function TrumpBiddingPanel({ roomCode, onBidTrump, onPass }: TrumpBiddingPanelProps) {
-  // Get bidding state from store
   const trumpBids = useStore((state) => state.trumpBids);
   const highestTrumpBid = useStore((state) => state.highestTrumpBid);
   const minimumBid = useStore((state) => state.minimumBid);
@@ -32,56 +26,59 @@ export function TrumpBiddingPanel({ roomCode, onBidTrump, onPass }: TrumpBidding
   const myUserId = useStore((state) => state.user?.id);
   const hasUserPassed = myUserId ? passedPlayers.has(myUserId) : false;
 
-  // Get room players to map IDs to names
   const roomPlayers = useStore((state) => state.gamePlayers);
 
-  // Find current bidder name
   const currentBidder = roomPlayers.find(p => p.userId === currentTurnPlayerId);
   const currentBidderName = currentBidder?.displayName || 'Unknown';
 
-  // Handle bid placement
   const handleBid = async (amount: number, suit: TrumpSuit) => {
-    try {
-      await onBidTrump(amount, suit);
-    } catch (error) {
-      console.error('Failed to place bid:', error);
-      throw error;
-    }
+    await onBidTrump(amount, suit);
   };
 
-  // Handle pass
   const handlePass = async () => {
-    try {
-      await onPass();
-    } catch (error) {
-      console.error('Failed to pass:', error);
-      throw error;
-    }
+    await onPass();
   };
 
-  // Don't show panel if not in trump bidding phase
   if (phase !== 'trump_bidding' && phase !== 'frisch') {
     return null;
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Phase indicator */}
+      <PhaseIndicator currentPhase={1} />
+
       {/* Frisch indicator */}
       {frischCount > 0 && (
-        <Card variant="outlined" className="p-3 bg-amber-50 border-amber-300">
-          <p className="text-sm text-amber-900 text-center font-medium">
-            🔄 Frisch Round {frischCount} - Minimum bid raised to {minimumBid}
+        <div className="bg-ochre/10 border-l-4 border-ochre px-4 py-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-[0.15em] text-ochre">
+              Frisch
+            </span>
+            <div className="flex gap-1">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className={`w-2 h-2 ${
+                    i < frischCount ? 'bg-ochre' : 'bg-muted'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Minimum bid: {minimumBid}
           </p>
-        </Card>
+        </div>
       )}
 
-      {/* Bid History Timeline - always visible */}
+      {/* Bid history */}
       <BidHistoryTimeline
         bids={trumpBids}
         highestBid={highestTrumpBid}
       />
 
-      {/* Conditional: Active controls OR waiting view */}
+      {/* Active controls or waiting view */}
       {isMyTurn && !hasUserPassed ? (
         <ActiveBiddingControls
           minimumBid={minimumBid}
@@ -92,11 +89,9 @@ export function TrumpBiddingPanel({ roomCode, onBidTrump, onPass }: TrumpBidding
           isLoading={isSubmitting}
         />
       ) : hasUserPassed ? (
-        <Card variant="outlined" className="p-4 bg-gray-50">
-          <p className="text-center text-muted-foreground">
-            You have passed. Waiting for others...
-          </p>
-        </Card>
+        <p className="text-center text-sm text-muted-foreground py-4 uppercase tracking-[0.1em]">
+          Passed. Waiting for others...
+        </p>
       ) : (
         <WaitingForBidder
           currentBidderName={currentBidderName}

@@ -1,13 +1,7 @@
-/**
- * Contract Bidding Panel Component
- * Main bidding interface during contract bidding phase
- */
-
 'use client';
 
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BidCounter } from './bid-counter';
 import { PlayerBidStatus } from './player-bid-status';
@@ -56,10 +50,7 @@ export function ContractBiddingPanel({
   const bidError = useCallback(() => {
     if (isValidBid()) return null;
     return getContractBidErrorMessage(
-      selectedBid,
-      currentContractSum,
-      isLastBidder,
-      targetSum
+      selectedBid, currentContractSum, isLastBidder, targetSum
     );
   }, [isValidBid, selectedBid, currentContractSum, isLastBidder, targetSum]);
 
@@ -68,7 +59,7 @@ export function ContractBiddingPanel({
     try {
       await onBid(selectedBid);
       setSelectedBid(0);
-    } catch (err) {
+    } catch {
       // Error is passed via error prop
     }
   }, [isValidBid, selectedBid, onBid, isLoading]);
@@ -76,56 +67,22 @@ export function ContractBiddingPanel({
   const projectedSum = currentContractSum + selectedBid;
 
   return (
-    <div className="space-y-4">
-      {/* Trump info card */}
-      <Card variant="elevated" className="p-4 bg-gradient-to-br from-purple-50 to-pink-50">
-        <div className="space-y-2">
-          <p className="text-sm text-gray-600">Trump Suit</p>
-          <div className="flex items-center justify-between">
-            <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-              className="text-4xl"
-            >
-              {getSuitSymbol(trumpSuit)}
-            </motion.span>
-            <div className="text-right">
-              <p className="text-xs text-gray-500">Trump Winner</p>
-              <p className="text-sm font-medium text-gray-900">{trumpWinner}</p>
-            </div>
-          </div>
+    <div className="space-y-6">
+      {/* Trump info — top right corner style */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-baseline gap-3">
+          <span className="text-3xl font-bold">{currentContractSum}</span>
+          <span className="text-sm text-muted-foreground">/ {targetSum}</span>
         </div>
-      </Card>
-
-      {/* Current sum display */}
-      <Card variant="outlined" className="p-4">
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div>
-            <p className="text-xs text-gray-500 mb-1">Current Sum</p>
-            <p className="text-2xl font-bold text-gray-900">{currentContractSum}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 mb-1">Your Bid</p>
-            <p className="text-2xl font-bold text-blue-600">{selectedBid}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 mb-1">Projected</p>
-            <motion.p
-              key={projectedSum}
-              initial={{ scale: 0.8 }}
-              animate={{ scale: 1 }}
-              className={`text-2xl font-bold ${
-                projectedSum === targetSum && isLastBidder
-                  ? 'text-red-600'
-                  : 'text-gray-900'
-              }`}
-            >
-              {projectedSum}
-            </motion.p>
-          </div>
+        <div className="text-right">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground block">
+            Trump
+          </span>
+          <span className={`text-3xl ${getSuitColorClass(trumpSuit)}`}>
+            {getSuitSymbol(trumpSuit)}
+          </span>
         </div>
-      </Card>
+      </div>
 
       {/* Your bid selection */}
       {isYourTurn && (
@@ -134,68 +91,61 @@ export function ContractBiddingPanel({
           animate={{ opacity: 1, y: 0 }}
           className="space-y-4"
         >
-          {/* Warning for last bidder */}
+          {/* Last bidder warning */}
           {isLastBidder && (
-            <motion.div
-              initial={{ opacity: 0, y: -5 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-amber-50 border border-amber-200 rounded px-3 py-2"
-            >
-              <p className="text-sm font-medium text-amber-900">
-                ⚠️ Last Bidder: Cannot bid to reach {targetSum}
+            <div className="bg-ochre/10 border-l-4 border-ochre px-4 py-2">
+              <p className="text-xs font-semibold text-ochre uppercase tracking-[0.1em]">
+                Last bidder — cannot reach {targetSum}
               </p>
-            </motion.div>
+            </div>
           )}
 
-          {/* Error message */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded px-3 py-2">
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
+            <p className="text-sm text-terracotta text-center">{error}</p>
           )}
 
-          {/* Bid validation message */}
           {selectedBid > 0 && bidError() && (
-            <div className="bg-red-50 border border-red-200 rounded px-3 py-2">
-              <p className="text-sm text-red-700">{bidError()}</p>
-            </div>
+            <p className="text-sm text-terracotta text-center">{bidError()}</p>
           )}
 
           {/* Bid counter */}
-          <div className="flex justify-center">
-            <BidCounter
-              value={selectedBid}
-              min={0}
-              max={13}
-              onChange={setSelectedBid}
-              disabled={isLoading}
-              label="Your Contract"
-            />
+          <BidCounter
+            value={selectedBid}
+            min={0}
+            max={13}
+            onChange={setSelectedBid}
+            disabled={isLoading}
+          />
+
+          {/* Projected sum */}
+          <div className="text-center">
+            <span className={`text-sm ${
+              projectedSum === targetSum && isLastBidder
+                ? 'text-terracotta font-semibold'
+                : 'text-muted-foreground'
+            }`}>
+              Projected: {projectedSum}
+            </span>
           </div>
 
-          {/* Confirm button */}
           <Button
-            variant="primary"
             onClick={handleBid}
             disabled={!isValidBid() || isLoading}
-            className="w-full"
+            fullWidth
+            size="lg"
           >
-            {isLoading ? 'Confirming...' : 'Confirm Bid'}
+            {isLoading ? 'Confirming...' : 'Confirm'}
           </Button>
         </motion.div>
       )}
 
       {!isYourTurn && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="bg-gray-50 rounded-lg p-4 text-center"
-        >
-          <p className="text-sm text-gray-600">Waiting for another player's bid...</p>
-        </motion.div>
+        <p className="text-center text-sm text-muted-foreground py-4 uppercase tracking-[0.1em]">
+          Waiting for bid...
+        </p>
       )}
 
-      {/* Player bid status */}
+      {/* Player status */}
       <PlayerBidStatus players={players} currentTurnPlayerId={currentTurnPlayerId} />
     </div>
   );
@@ -203,13 +153,15 @@ export function ContractBiddingPanel({
 
 function getSuitSymbol(suit: TrumpSuit): string {
   const symbols: Record<TrumpSuit, string> = {
-    clubs: '♣',
-    diamonds: '♦',
-    hearts: '♥',
-    spades: '♠',
-    no_trump: 'NT',
+    clubs: '♣', diamonds: '♦', hearts: '♥', spades: '♠', no_trump: 'NT',
   };
   return symbols[suit] || '';
+}
+
+function getSuitColorClass(suit: TrumpSuit): string {
+  if (suit === 'hearts' || suit === 'diamonds') return 'text-terracotta';
+  if (suit === 'clubs' || suit === 'spades') return 'text-foreground';
+  return 'text-steel';
 }
 
 export default ContractBiddingPanel;
