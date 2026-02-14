@@ -81,6 +81,34 @@ class SyncRequestPayload(BasePayload):
     room_code: str = Field(min_length=6, max_length=6)
 
 
+class SeatingSwapPayload(BasePayload):
+    """Payload for game:seating_swap event (client to server)."""
+
+    room_code: str = Field(min_length=6, max_length=6)
+    player_a_id: str
+    player_b_id: str
+
+
+class SeatingConfirmPayload(BasePayload):
+    """Payload for game:seating_confirmed event (client to server)."""
+
+    room_code: str = Field(min_length=6, max_length=6)
+
+
+class SeatingUpdatedPayload(TimestampedPayload):
+    """Payload for game:seating_updated event (server broadcast)."""
+
+    players: list[PlayerInfo]
+
+
+class SeatingSetPayload(TimestampedPayload):
+    """Payload for game:seating_set event (server broadcast)."""
+
+    players: list[PlayerInfo]
+    game_id: str
+    first_bidder_id: str
+
+
 # Server → Client (Single) Payloads
 
 class RoomJoinedPayload(TimestampedPayload):
@@ -460,6 +488,8 @@ class ClientEvents:
     BID_TRUMP: str = "bid:trump"
     BID_PASS: str = "bid:pass"
     BID_CONTRACT: str = "bid:contract"
+    SEATING_SWAP: str = "game:seating_swap"
+    SEATING_CONFIRMED: str = "game:seating_confirmed"
     ROUND_CLAIM_TRICK: str = "round:claim_trick"
     ROUND_UNDO_TRICK: str = "round:undo_trick"
 
@@ -478,6 +508,10 @@ class ServerEvents:
     # Game events
     GAME_STARTED: str = "game:started"
     ROOM_GAME_STARTING: str = "room:game_starting"
+
+    # Seating events
+    SEATING_UPDATED: str = "game:seating_updated"
+    SEATING_SET: str = "game:seating_set"
 
     # Bidding events
     YOUR_TURN: str = "bid:your_turn"
