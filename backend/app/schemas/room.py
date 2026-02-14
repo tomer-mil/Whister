@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 GameStatus = Literal[
     "waiting",
+    "seating",
     "bidding_trump",
     "frisch",
     "bidding_contract",
