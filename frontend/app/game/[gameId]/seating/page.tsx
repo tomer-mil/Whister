@@ -17,10 +17,10 @@ import type { SeatingUpdatedPayload, SeatingSetPayload } from '@/types/socket-ev
 
 // Seat positions around the circular table (clockwise from top)
 const SEAT_POSITIONS = [
-  { label: '1', angle: 270, x: 50, y: 5 },   // Top (12 o'clock)
-  { label: '2', angle: 0, x: 88, y: 50 },     // Right (3 o'clock)
-  { label: '3', angle: 90, x: 50, y: 88 },    // Bottom (6 o'clock)
-  { label: '4', angle: 180, x: 12, y: 50 },   // Left (9 o'clock)
+  { label: '1', x: 50, y: 5 },   // Top (12 o'clock)
+  { label: '2', x: 88, y: 50 },  // Right (3 o'clock)
+  { label: '3', x: 50, y: 88 },  // Bottom (6 o'clock)
+  { label: '4', x: 12, y: 50 },  // Left (9 o'clock)
 ];
 
 export default function SeatingPage({
@@ -31,6 +31,7 @@ export default function SeatingPage({
   const { gameId } = React.use(params);
   const router = useRouter();
   const [draggedPlayerId, setDraggedPlayerId] = useState<string | null>(null);
+  const [dragOverPlayerId, setDragOverPlayerId] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,7 +51,6 @@ export default function SeatingPage({
     'game:seating_updated',
     useCallback((payload: SeatingUpdatedPayload) => {
       const store = useStore.getState();
-      // Update players with new seat positions
       const updatedPlayers = store.players.map((p) => {
         const serverPlayer = payload.players.find((sp) => sp.user_id === p.userId);
         if (serverPlayer) {
@@ -67,7 +67,6 @@ export default function SeatingPage({
     'game:seating_set',
     useCallback(
       (payload: SeatingSetPayload) => {
-        // Update players with final positions
         const store = useStore.getState();
         const updatedPlayers = store.players.map((p) => {
           const serverPlayer = payload.players.find((sp) => sp.user_id === p.userId);
@@ -77,18 +76,28 @@ export default function SeatingPage({
           return p;
         });
         store.setPlayers(updatedPlayers);
-
-        // Navigate to game page for bidding
         router.push(`/game/${payload.game_id}`);
       },
       [router]
     )
   );
 
-  // Drag handlers (admin only)
+  // Listen for socket errors
+  useSocketEvent(
+    'error',
+    useCallback((payload: { message?: string }) => {
+      setError(payload.message ?? 'An error occurred');
+      setIsConfirming(false);
+    }, [])
+  );
+
+  // --- Drag-and-drop handlers (admin only) ---
+
   const handleDragStart = useCallback(
-    (playerId: string) => {
+    (e: React.DragEvent, playerId: string) => {
       if (!isAdmin) return;
+      e.dataTransfer.setData('text/plain', playerId);
+      e.dataTransfer.effectAllowed = 'move';
       setDraggedPlayerId(playerId);
     },
     [isAdmin]
@@ -96,16 +105,32 @@ export default function SeatingPage({
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const handleDragEnter = useCallback(
+    (playerId: string) => {
+      if (draggedPlayerId && draggedPlayerId !== playerId) {
+        setDragOverPlayerId(playerId);
+      }
+    },
+    [draggedPlayerId]
+  );
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverPlayerId(null);
   }, []);
 
   const handleDrop = useCallback(
-    (targetPlayerId: string) => {
+    (e: React.DragEvent, targetPlayerId: string) => {
+      e.preventDefault();
+      setDragOverPlayerId(null);
+
       if (!isAdmin || !draggedPlayerId || draggedPlayerId === targetPlayerId) {
         setDraggedPlayerId(null);
         return;
       }
 
-      // Emit swap event
       const socket = socketManager.getSocket();
       if (socket?.connected && roomCode) {
         socket.emit('game:seating_swap', {
@@ -120,16 +145,26 @@ export default function SeatingPage({
     [isAdmin, draggedPlayerId, roomCode]
   );
 
-  const handleConfirmSeating = useCallback(async () => {
+  const handleDragEnd = useCallback(() => {
+    setDraggedPlayerId(null);
+    setDragOverPlayerId(null);
+  }, []);
+
+  const handleConfirmSeating = useCallback(() => {
     if (!roomCode) return;
-    setError(null);
-    setIsConfirming(true);
 
     const socket = socketManager.getSocket();
-    if (socket?.connected) {
-      socket.emit('game:seating_confirmed', { room_code: roomCode });
+    if (!socket?.connected) {
+      setError('Not connected to server');
+      return;
     }
-    // Navigation happens via game:seating_set event
+
+    setError(null);
+    setIsConfirming(true);
+    socket.emit('game:seating_confirmed', { room_code: roomCode });
+
+    // Reset button after timeout in case server doesn't respond
+    setTimeout(() => setIsConfirming(false), 5000);
   }, [roomCode]);
 
   return (
@@ -177,7 +212,7 @@ export default function SeatingPage({
               <Button
                 onClick={handleConfirmSeating}
                 disabled={isConfirming}
-                className="rounded-full w-24 h-24 sm:w-28 sm:h-28 text-sm font-bold shadow-lg"
+                className="rounded-full w-24 h-24 sm:w-28 sm:h-28 text-sm font-bold shadow-lg whitespace-pre-line"
               >
                 {isConfirming ? 'Setting...' : 'Set\nSeating'}
               </Button>
@@ -191,6 +226,7 @@ export default function SeatingPage({
             if (!pos) return null;
 
             const isDragging = draggedPlayerId === player.userId;
+            const isDragOver = dragOverPlayerId === player.userId;
 
             return (
               <div
@@ -200,6 +236,10 @@ export default function SeatingPage({
                   left: `${pos.x}%`,
                   top: `${pos.y}%`,
                 }}
+                onDragOver={isAdmin ? handleDragOver : undefined}
+                onDragEnter={isAdmin ? () => handleDragEnter(player.userId) : undefined}
+                onDragLeave={isAdmin ? handleDragLeave : undefined}
+                onDrop={isAdmin ? (e) => handleDrop(e, player.userId) : undefined}
               >
                 {/* Seat number label */}
                 <span className="text-xs font-medium text-muted-foreground">
@@ -209,9 +249,8 @@ export default function SeatingPage({
                 {/* Player circle */}
                 <div
                   draggable={isAdmin}
-                  onDragStart={() => handleDragStart(player.userId)}
-                  onDragOver={handleDragOver}
-                  onDrop={() => handleDrop(player.userId)}
+                  onDragStart={isAdmin ? (e) => handleDragStart(e, player.userId) : undefined}
+                  onDragEnd={isAdmin ? handleDragEnd : undefined}
                   className={`
                     w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center
                     text-xs sm:text-sm font-semibold text-center
@@ -219,11 +258,13 @@ export default function SeatingPage({
                     ${isAdmin ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}
                     ${isDragging
                       ? 'opacity-50 scale-90 border-primary bg-primary/20'
-                      : player.isConnected
-                        ? 'border-primary bg-primary/10 text-foreground'
-                        : 'border-muted bg-muted/30 text-muted-foreground opacity-60'
+                      : isDragOver
+                        ? 'scale-110 border-primary bg-primary/30 ring-2 ring-primary/50'
+                        : player.isConnected
+                          ? 'border-primary bg-primary/10 text-foreground'
+                          : 'border-muted bg-muted/30 text-muted-foreground opacity-60'
                     }
-                    ${isAdmin && !isDragging ? 'hover:border-primary/80 hover:shadow-md' : ''}
+                    ${isAdmin && !isDragging && !isDragOver ? 'hover:border-primary/80 hover:shadow-md' : ''}
                   `}
                 >
                   <span className="px-1 leading-tight truncate max-w-[3.5rem] sm:max-w-[4.5rem]">
