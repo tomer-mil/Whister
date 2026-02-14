@@ -1,74 +1,87 @@
-/**
- * Game Header Component
- * Displays round number, trump suit, and game type
- */
-
 'use client';
 
-import { Card } from '@/components/ui/card';
-import { ConnectionStatus } from '@/components/shared/connection-status';
-import type { TrumpSuit, GameType } from '@/types/game';
+import { PlayerShape } from '@/components/ui/player-shape';
+import type { TrumpSuit } from '@/types/game';
+
+export interface DashboardPlayer {
+  playerId: string;
+  playerName: string;
+  tricksWon: number;
+  contract: number;
+  seatIndex: number;
+}
 
 export interface GameHeaderProps {
   roundNumber: number;
   totalRounds: number;
   trumpSuit?: TrumpSuit;
-  gameType?: GameType;
+  players?: DashboardPlayer[];
+  currentUserId?: string;
 }
 
 export function GameHeader({
-  roundNumber,
-  totalRounds,
   trumpSuit,
-  gameType,
+  players = [],
+  currentUserId,
 }: GameHeaderProps) {
   return (
-    <Card variant="elevated" className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50">
-      <div className="flex items-center justify-between gap-4">
-        {/* Round info */}
-        <div className="flex-1">
-          <p className="text-sm text-gray-600 mb-1">Round</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {roundNumber} <span className="text-sm text-gray-500">/ {totalRounds}</span>
-          </p>
+    <div className="px-4 py-3 border-b-2 border-foreground">
+      <div className="flex items-center justify-between gap-2">
+        {/* Player dashboard entries */}
+        <div className="flex items-center gap-4 flex-1 overflow-x-auto">
+          {players.map((player) => {
+            const isCurrentUser = player.playerId === currentUserId;
+            const metContract = player.tricksWon >= player.contract && player.contract > 0;
+            const exceededContract = player.tricksWon > player.contract;
+
+            return (
+              <div
+                key={player.playerId}
+                className={`flex items-center gap-2 py-1 ${
+                  isCurrentUser ? 'border-b-2 border-ochre' : ''
+                }`}
+              >
+                <PlayerShape
+                  playerIndex={player.seatIndex}
+                  size={16}
+                  filled={true}
+                  color={
+                    exceededContract ? '#C75233' :
+                    metContract ? '#6B8F5E' :
+                    undefined
+                  }
+                />
+                <span className="text-lg font-bold">{player.tricksWon}</span>
+                <span className="text-xs text-muted-foreground">/ {player.contract}</span>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Trump suit and game type */}
-        <div className="flex-1 text-center">
-          {trumpSuit ? (
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Trump Suit</p>
-              <p className="text-2xl font-bold">{getSuitSymbol(trumpSuit)}</p>
-              {gameType && (
-                <p className="text-xs text-gray-500 mt-1 capitalize">{gameType}</p>
-              )}
-            </div>
-          ) : (
-            <div>
-              <p className="text-sm text-gray-600">Trump Suit</p>
-              <p className="text-lg text-gray-400">Not Set</p>
-            </div>
-          )}
-        </div>
-
-        {/* Connection status */}
-        <div className="flex-1 flex justify-end">
-          <ConnectionStatus />
-        </div>
+        {/* Trump suit icon */}
+        {trumpSuit && (
+          <div className="flex-shrink-0 text-right">
+            <span className={`text-2xl ${getSuitColorClass(trumpSuit)}`}>
+              {getSuitSymbol(trumpSuit)}
+            </span>
+          </div>
+        )}
       </div>
-    </Card>
+    </div>
   );
 }
 
 function getSuitSymbol(suit: TrumpSuit): string {
   const symbols: Record<TrumpSuit, string> = {
-    clubs: '♣',
-    diamonds: '♦',
-    hearts: '♥',
-    spades: '♠',
-    no_trump: 'NT',
+    clubs: '♣', diamonds: '♦', hearts: '♥', spades: '♠', no_trump: 'NT',
   };
   return symbols[suit] || '';
+}
+
+function getSuitColorClass(suit: TrumpSuit): string {
+  if (suit === 'hearts' || suit === 'diamonds') return 'text-terracotta';
+  if (suit === 'clubs' || suit === 'spades') return 'text-foreground';
+  return 'text-steel';
 }
 
 export default GameHeader;

@@ -1,18 +1,13 @@
-/**
- * Game Page
- * Main gameplay interface with phase-based rendering
- * Supports: trump bidding, contract bidding, playing, round complete
- */
-
 'use client';
 
 import React, { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/stores';
-import { Card } from '@/components/ui/card';
 import { ConnectionStatus } from '@/components/shared/connection-status';
+import { PhaseIndicator } from '@/components/ui/phase-indicator';
 import { TrumpBiddingPanel } from '@/components/bidding/trump-bidding-panel';
 import { ContractBiddingPanel } from '@/components/bidding/contract-bidding-panel';
+import { GameHeader } from '@/components/game/game-header';
 import { TrickClaimButton } from '@/components/game/trick-claim-button';
 import { AllPlayersProgress } from '@/components/game/all-players-progress';
 import { AdminControls } from '@/components/game/admin-controls';
@@ -31,109 +26,58 @@ export default function GamePage({
   const [error, setError] = useState<string | null>(null);
   const [isLoading] = useState(false);
 
-  // Get state from store
   const {
     roomCode,
     players,
     user,
     isAdmin,
-    // Bidding state
     phase,
     currentTurnPlayerId,
-    trumpBids: _trumpBids,
-    highestTrumpBid: _highestTrumpBid,
-    minimumBid: _minimumBid,
-    frischCount: _frischCount,
     trumpSuit,
     trumpWinnerId,
-    trumpWinningBid: _trumpWinningBid,
     contracts,
     contractSum,
     gameType,
     isMyTurn,
     isSubmitting,
-    // Game state
     currentRound,
     totalTricksPlayed,
     playerTricks,
     roundResults,
-    // Actions
-    setCurrentTurn: _setCurrentTurn,
   } = useStore((state) => ({
     roomCode: state.roomCode,
     players: state.players,
     user: state.user,
     isAdmin: state.isAdmin,
-    // Bidding
     phase: state.phase,
     currentTurnPlayerId: state.currentTurnPlayerId,
-    trumpBids: state.trumpBids,
-    highestTrumpBid: state.highestTrumpBid,
-    minimumBid: state.minimumBid,
-    frischCount: state.frischCount,
     trumpSuit: state.trumpSuit,
     trumpWinnerId: state.trumpWinnerId,
-    trumpWinningBid: state.trumpWinningBid,
     contracts: state.contracts,
     contractSum: state.contractSum,
     gameType: state.gameType,
     isMyTurn: state.isMyTurn,
     isSubmitting: state.isSubmitting,
-    // Game
     currentRound: state.currentRound ?? 1,
     totalTricksPlayed: state.totalTricksPlayed ?? 0,
     playerTricks: state.playerTricks ?? {},
     roundResults: state.roundResults,
-    // Actions
-    setCurrentTurn: state.setCurrentTurn,
   }));
 
-  // Get hooks for socket operations
   const { bidTrump, passRound, bidContract } = useBidding({ roomCode: roomCode ?? '' });
   const { claimTrick, undoTrick } = useGame({ roomCode: roomCode ?? '' });
 
-  // Find trump winner name
   const trumpWinnerName = players.find(p => p.userId === trumpWinnerId)?.displayName ?? 'Unknown';
 
-  // Convert players to bidding status format (unused for now - bidding UI not yet shown)
-  // const getBiddingPlayerStatus = useCallback(() => {
-  //   return players.map(player => {
-  //     const hasBid = trumpBids.some(b => b.playerId === player.userId);
-  //     const bid = trumpBids.find(b => b.playerId === player.userId);
-  //     const isPassed = !hasBid && phase !== 'trump_bidding'; // Simplified check
-
-  //     let status: 'waiting' | 'current_turn' | 'passed' | 'bid' = 'waiting';
-  //     if (player.userId === currentTurnPlayerId) {
-  //       status = 'current_turn';
-  //     } else if (hasBid) {
-  //       status = 'bid';
-  //     } else if (isPassed) {
-  //       status = 'passed';
-  //     }
-
-  //     return {
-  //       playerId: player.userId,
-  //       displayName: player.displayName,
-  //       seatPosition: player.seatPosition ?? 0,
-  //       status,
-  //       bid: bid?.amount,
-  //       suit: bid?.suit,
-  //     };
-  //   });
-  // }, [players, trumpBids, currentTurnPlayerId, phase]);
-
-  // Convert players to contract bidding status format
   const getContractPlayerStatus = useCallback(() => {
     return players.map(player => {
       const contract = contracts.find(c => c.playerId === player.userId);
-
       let status: 'waiting' | 'current_turn' | 'bid' = 'waiting';
       if (player.userId === currentTurnPlayerId) {
         status = 'current_turn';
       } else if (contract) {
         status = 'bid';
       }
-
       return {
         playerId: player.userId,
         displayName: player.displayName,
@@ -144,7 +88,6 @@ export default function GamePage({
     });
   }, [players, contracts, currentTurnPlayerId]);
 
-  // Convert players to progress format for playing phase
   const getPlayersProgress = useCallback(() => {
     return players.map(player => {
       const contract = contracts.find(c => c.playerId === player.userId);
@@ -157,30 +100,21 @@ export default function GamePage({
     });
   }, [players, contracts, playerTricks]);
 
-  // Check if user is last bidder in contract phase
+  const getDashboardPlayers = useCallback(() => {
+    return players.map((player, index) => {
+      const contract = contracts.find(c => c.playerId === player.userId);
+      return {
+        playerId: player.userId,
+        playerName: player.displayName,
+        tricksWon: playerTricks[player.userId] ?? 0,
+        contract: contract?.amount ?? 0,
+        seatIndex: index,
+      };
+    });
+  }, [players, contracts, playerTricks]);
+
   const isLastBidder = contracts.length === 3 && isMyTurn;
 
-  // Handle trump bid (not used yet - bidding UI not showing)
-  // const handleTrumpBid = useCallback(async (amount: number, suit: TrumpSuit) => {
-  //   setError(null);
-  //   try {
-  //     await bidTrump(amount, suit);
-  //   } catch (err) {
-  //     setError(err instanceof Error ? err.message : 'Failed to place bid');
-  //   }
-  // }, [bidTrump]);
-
-  // Handle pass (not used yet - bidding UI not showing)
-  // const handlePass = useCallback(async () => {
-  //   setError(null);
-  //   try {
-  //     await passRound();
-  //   } catch (err) {
-  //     setError(err instanceof Error ? err.message : 'Failed to pass');
-  //   }
-  // }, [passRound]);
-
-  // Handle contract bid
   const handleContractBid = useCallback(async (amount: number) => {
     setError(null);
     try {
@@ -190,7 +124,6 @@ export default function GamePage({
     }
   }, [bidContract]);
 
-  // Handle trick claim
   const handleClaimTrick = useCallback(async () => {
     setError(null);
     try {
@@ -200,7 +133,6 @@ export default function GamePage({
     }
   }, [claimTrick]);
 
-  // Handle undo trick (admin only)
   const handleUndoTrick = useCallback(async (playerId: string) => {
     setError(null);
     try {
@@ -210,13 +142,10 @@ export default function GamePage({
     }
   }, [undoTrick]);
 
-  // Handle continue to next round
   const handleContinueRound = useCallback(() => {
-    // Navigate to score table instead of starting next round
     router.push(`/game/${gameId}/scores`);
   }, [router, gameId]);
 
-  // Convert round results for modal
   const getRoundResults = useCallback(() => {
     if (!roundResults) return [];
     return roundResults.map(r => ({
@@ -229,57 +158,51 @@ export default function GamePage({
     }));
   }, [roundResults]);
 
+  const getPhaseIndex = () => {
+    if (phase === 'seating') return 0;
+    if (phase === 'trump_bidding' || phase === 'frisch' || phase === 'contract_bidding') return 1;
+    return 2;
+  };
+
   return (
-    <main className="min-h-screen pb-safe-bottom">
-      {/* Header */}
-      <header className="bg-card border-b border-border sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 py-3 sm:py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground">
-              Round {currentRound}
-            </h1>
-            <div className="flex items-center gap-2 mt-1">
-              <ConnectionStatus />
-              <span className="text-xs sm:text-sm text-muted-foreground">
-                Room: {roomCode}
-              </span>
-              {trumpSuit && (
-                <span className="text-xs sm:text-sm font-medium text-primary">
-                  Trump: {getTrumpSymbol(trumpSuit)}
-                </span>
-              )}
-            </div>
-          </div>
+    <main className="min-h-screen flex flex-col pb-safe-bottom">
+      {/* Subtle top info */}
+      <div className="px-4 py-2 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground uppercase tracking-[0.1em]">
+            {roomCode}
+          </span>
           {gameType && (
-            <div className={`px-3 py-1 rounded-full text-xs font-bold ${
-              gameType === 'over' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-            }`}>
-              {gameType.toUpperCase()}
-            </div>
+            <span className="text-xs font-semibold uppercase tracking-[0.1em] text-foreground">
+              {gameType}
+            </span>
           )}
         </div>
-      </header>
+        <ConnectionStatus />
+      </div>
 
-      {/* Game Content */}
-      <section className="max-w-6xl mx-auto px-4 py-6">
-        {/* Error display */}
-        {error && (
-          <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-            <p className="text-sm text-destructive">{error}</p>
-          </div>
-        )}
+      {/* Phase indicator */}
+      <PhaseIndicator currentPhase={getPhaseIndex()} />
 
-        {/* Phase: Trump Bidding */}
-        {(phase === 'trump_bidding' || phase === 'frisch') && roomCode && (
+      {/* Error display */}
+      {error && (
+        <p className="text-sm text-terracotta text-center px-4 py-2">{error}</p>
+      )}
+
+      {/* Phase: Trump Bidding */}
+      {(phase === 'trump_bidding' || phase === 'frisch') && roomCode && (
+        <section className="flex-1 px-4 py-4">
           <TrumpBiddingPanel
             roomCode={roomCode}
             onBidTrump={bidTrump}
             onPass={passRound}
           />
-        )}
+        </section>
+      )}
 
-        {/* Phase: Contract Bidding */}
-        {phase === 'contract_bidding' && trumpSuit && (
+      {/* Phase: Contract Bidding */}
+      {phase === 'contract_bidding' && trumpSuit && (
+        <section className="flex-1 px-4 py-4">
           <ContractBiddingPanel
             trumpSuit={trumpSuit}
             trumpWinner={trumpWinnerName}
@@ -293,19 +216,30 @@ export default function GamePage({
             isLoading={isSubmitting}
             error={error ?? undefined}
           />
-        )}
+        </section>
+      )}
 
-        {/* Phase: Playing */}
-        {phase === 'playing' && (
-          <div className="space-y-4">
-            {/* Main trick claim button */}
+      {/* Phase: Playing */}
+      {phase === 'playing' && (
+        <>
+          {/* Dashboard strip */}
+          <GameHeader
+            roundNumber={currentRound}
+            totalRounds={13}
+            trumpSuit={trumpSuit ?? undefined}
+            players={getDashboardPlayers()}
+            currentUserId={user?.id}
+          />
+
+          <section className="flex-1 px-4 py-4 space-y-4">
+            {/* Large claim trick button */}
             <TrickClaimButton
               onClaim={handleClaimTrick}
               disabled={isLoading}
               isLoading={isLoading}
             />
 
-            {/* All players progress */}
+            {/* Progress */}
             <AllPlayersProgress
               players={getPlayersProgress()}
               currentPlayerId={user?.id}
@@ -325,19 +259,18 @@ export default function GamePage({
                 error={error ?? undefined}
               />
             )}
-          </div>
-        )}
+          </section>
+        </>
+      )}
 
-        {/* Phase: Round Complete */}
-        {phase === 'complete' && (
-          <Card variant="elevated" className="p-6 text-center">
-            <h2 className="text-xl font-bold mb-2">Round Complete!</h2>
-            <p className="text-muted-foreground">
-              Waiting for round summary...
-            </p>
-          </Card>
-        )}
-      </section>
+      {/* Phase: Round Complete */}
+      {phase === 'complete' && (
+        <section className="flex-1 flex items-center justify-center px-4">
+          <p className="text-sm text-muted-foreground uppercase tracking-[0.1em]">
+            Round complete
+          </p>
+        </section>
+      )}
 
       {/* Round Summary Modal */}
       <RoundSummaryModal
@@ -349,15 +282,4 @@ export default function GamePage({
       />
     </main>
   );
-}
-
-function getTrumpSymbol(suit: TrumpSuit): string {
-  const symbols: Record<TrumpSuit, string> = {
-    clubs: '♣',
-    diamonds: '♦',
-    hearts: '♥',
-    spades: '♠',
-    no_trump: 'NT',
-  };
-  return symbols[suit] || '';
 }

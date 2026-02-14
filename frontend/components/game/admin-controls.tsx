@@ -1,14 +1,7 @@
-/**
- * Admin Controls Component
- * Undo and end round controls for admin users
- */
-
 'use client';
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { motion } from 'framer-motion';
 
 export interface PlayerOption {
   playerId: string;
@@ -42,7 +35,7 @@ export function AdminControls({
     try {
       await onUndoTrick(selectedPlayerId);
       setSelectedPlayerId(null);
-    } catch (err) {
+    } catch {
       // Error is passed via error prop
     } finally {
       setIsUndoLoading(false);
@@ -53,88 +46,58 @@ export function AdminControls({
     if (!onEndRound || isLoading) return;
     try {
       await onEndRound();
-    } catch (err) {
+    } catch {
       // Error is passed via error prop
     }
   };
 
   return (
-    <Card variant="outlined" className="p-4 bg-yellow-50 border-yellow-200">
-      <div className="space-y-3">
-        <p className="text-sm font-semibold text-yellow-900">🔧 Admin Controls</p>
-
-        {/* Undo trick */}
-        {onUndoTrick && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-2"
+    <div className="border-t border-border pt-4 space-y-3">
+      {/* Undo trick */}
+      {onUndoTrick && (
+        <div className="flex gap-2">
+          <select
+            value={selectedPlayerId || ''}
+            onChange={(e) => setSelectedPlayerId(e.target.value || null)}
+            disabled={isUndoLoading}
+            className="flex-1 bg-transparent border-0 border-b-2 border-muted px-0 py-2 text-sm text-foreground focus:border-foreground focus:outline-none disabled:opacity-40"
           >
-            <label className="text-xs font-medium text-gray-700">
-              Undo Trick
-            </label>
-            <div className="flex gap-2">
-              <select
-                value={selectedPlayerId || ''}
-                onChange={(e) => setSelectedPlayerId(e.target.value || null)}
-                disabled={isUndoLoading}
-                className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded bg-white disabled:opacity-50"
-              >
-                <option value="">Select player...</option>
-                {players.map((player) => (
-                  <option key={player.playerId} value={player.playerId}>
-                    {player.playerName}
-                  </option>
-                ))}
-              </select>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleUndo}
-                disabled={!selectedPlayerId || isUndoLoading}
-              >
-                {isUndoLoading ? '⏳' : '↩️'}
-              </Button>
-            </div>
-          </motion.div>
-        )}
-
-        {/* End round */}
-        {onEndRound && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+            <option value="">Select player...</option>
+            {players.map((player) => (
+              <option key={player.playerId} value={player.playerId}>
+                {player.playerName}
+              </option>
+            ))}
+          </select>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleUndo}
+            disabled={!selectedPlayerId || isUndoLoading}
           >
-            <Button
-              variant={canEndRound ? 'primary' : 'secondary'}
-              size="sm"
-              onClick={handleEndRound}
-              disabled={!canEndRound || isLoading}
-              className="w-full"
-            >
-              {isLoading ? '⏳ Ending...' : '✓ End Round'}
-            </Button>
-            {!canEndRound && (
-              <p className="text-xs text-gray-600 mt-1">
-                (Claim all 13 tricks to enable)
-              </p>
-            )}
-          </motion.div>
-        )}
+            {isUndoLoading ? 'Undoing...' : 'Undo'}
+          </Button>
+        </div>
+      )}
 
-        {/* Error message */}
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -5 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-red-100 border border-red-300 rounded px-2 py-1"
-          >
-            <p className="text-xs text-red-700">{error}</p>
-          </motion.div>
-        )}
-      </div>
-    </Card>
+      {/* End round */}
+      {onEndRound && (
+        <Button
+          variant={canEndRound ? 'secondary' : 'outline'}
+          size="sm"
+          onClick={handleEndRound}
+          disabled={!canEndRound || isLoading}
+          fullWidth
+          className={canEndRound ? 'border-terracotta text-terracotta hover:bg-terracotta hover:text-background' : ''}
+        >
+          {isLoading ? 'Ending...' : 'End Round'}
+        </Button>
+      )}
+
+      {error && (
+        <p className="text-xs text-terracotta">{error}</p>
+      )}
+    </div>
   );
 }
 
