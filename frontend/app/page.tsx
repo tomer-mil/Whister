@@ -1,14 +1,8 @@
-/**
- * Home Page / Landing Page
- */
-
 'use client';
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/stores';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
 
 export default function HomePage() {
@@ -17,28 +11,19 @@ export default function HomePage() {
   const isHydrated = useStore((state) => state.isHydrated);
   const user = useStore((state) => state.user);
 
-  console.log('[HomePage] Render - isAuthenticated:', isAuthenticated, 'isHydrated:', isHydrated, 'user:', user?.email);
-
-  // Redirect to login if not authenticated (only after hydration confirms we're not logged in)
   useEffect((): void | (() => void) => {
     if (typeof window === 'undefined') {
       return;
     }
 
     const state = useStore.getState();
-    console.log('[HomePage] useEffect - current state - isHydrated:', state.isHydrated, 'isAuthenticated:', state.isAuthenticated);
 
-    // Poll until hydration is complete
     if (!state.isHydrated) {
-      console.log('[HomePage] Waiting for hydration...');
       const checkInterval = setInterval(() => {
         const currentState = useStore.getState();
         if (currentState.isHydrated) {
-          console.log('[HomePage] Hydration complete - isAuthenticated:', currentState.isAuthenticated);
           clearInterval(checkInterval);
-
           if (!currentState.isAuthenticated) {
-            console.log('[HomePage] Not authenticated, redirecting to login');
             router.push('/login');
           }
         }
@@ -48,127 +33,69 @@ export default function HomePage() {
     }
 
     if (!state.isAuthenticated) {
-      console.log('[HomePage] Authenticated check passed - not authenticated, redirecting');
       router.push('/login');
     }
   }, [router]);
 
-  // Show skeleton loading state while checking authentication or waiting for hydration
   if (!isHydrated || !isAuthenticated) {
     return (
-      <main className="min-h-screen">
-        {/* Skeleton Header */}
-        <header className="bg-card border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4 md:py-6 flex justify-between items-center">
-            <div className="space-y-2">
-              <div className="h-7 w-48 bg-secondary/50 rounded animate-pulse" />
-              <div className="h-4 w-32 bg-secondary/30 rounded animate-pulse" />
-            </div>
-            <div className="h-10 w-20 bg-secondary/30 rounded animate-pulse" />
-          </div>
-        </header>
-        {/* Skeleton Content */}
-        <section className="max-w-7xl mx-auto px-4 py-6 sm:py-8 md:py-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            <div className="h-44 bg-secondary/30 rounded-lg animate-pulse" />
-            <div className="h-44 bg-secondary/30 rounded-lg animate-pulse" />
-          </div>
-        </section>
+      <main className="min-h-screen flex flex-col items-center justify-center p-6">
+        <h1 className="text-2xl font-bold uppercase tracking-[0.2em] text-foreground mb-8">
+          WHISTER
+        </h1>
+        <div className="w-full max-w-sm space-y-4">
+          <div className="h-20 border-2 border-muted animate-pulse" />
+          <div className="h-20 border-2 border-muted animate-pulse" />
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen">
-      {/* Header - Reduced padding on mobile */}
-      <header className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4 md:py-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground">Whist Score Keeper</h1>
-            <p className="text-sm sm:text-base text-muted-foreground mt-0.5 sm:mt-1">Welcome, {user?.displayName || 'Player'}!</p>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              const store = useStore.getState();
-              store.logout();
-              router.push('/login');
-            }}
-          >
-            Logout
-          </Button>
-        </div>
-      </header>
+    <main className="min-h-screen flex flex-col items-center justify-center p-6 relative">
+      {/* Decorative ochre accent — top right */}
+      <div className="absolute top-8 right-8">
+        <svg width="40" height="40" viewBox="0 0 40 40">
+          <polygon points="40,0 40,40 0,40" fill="#D4A030" opacity="0.6" />
+        </svg>
+      </div>
 
-      {/* Hero Section - Reduced padding on mobile */}
-      <section className="max-w-7xl mx-auto px-4 py-6 sm:py-8 md:py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          {/* Create Room Card */}
-          <Card variant="interactive" padding="lg">
-            <CardHeader>
-              <CardTitle>Start a Game</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-muted-foreground text-sm sm:text-base">
-                Host a new game and invite your friends to join.
-              </p>
-              <Link href="/room/create">
-                <Button variant="primary" fullWidth>
-                  Create Room
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
+      {/* Wordmark */}
+      <h1 className="text-2xl font-bold uppercase tracking-[0.2em] text-foreground mb-16">
+        WHISTER
+      </h1>
 
-          {/* Join Room Card */}
-          <Card variant="interactive" padding="lg">
-            <CardHeader>
-              <CardTitle>Join a Game</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-muted-foreground text-sm sm:text-base">
-                Enter a room code to join an existing game.
-              </p>
-              <Link href="/room/join">
-                <Button variant="secondary" fullWidth>
-                  Join Room
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
+      {/* Two bold action buttons */}
+      <div className="w-full max-w-sm space-y-4">
+        <Link href="/room/create" className="block">
+          <button className="w-full py-8 border-2 border-foreground text-foreground text-xl font-bold uppercase tracking-[0.15em] hover:bg-foreground hover:text-background active:scale-[0.97] transition-all">
+            Create
+          </button>
+        </Link>
 
-        {/* Featured Info - Hidden on mobile, shown on tablet+ */}
-        <div className="hidden md:grid mt-10 grid-cols-3 gap-6">
-          <Card variant="outlined">
-            <CardContent className="pt-6">
-              <h3 className="font-semibold text-foreground mb-2">Real-time Scoring</h3>
-              <p className="text-sm text-muted-foreground">
-                Watch scores update instantly as tricks are claimed and rounds complete.
-              </p>
-            </CardContent>
-          </Card>
+        <Link href="/room/join" className="block">
+          <button className="w-full py-8 border-2 border-foreground text-foreground text-xl font-bold uppercase tracking-[0.15em] hover:bg-foreground hover:text-background active:scale-[0.97] transition-all">
+            Join
+          </button>
+        </Link>
+      </div>
 
-          <Card variant="outlined">
-            <CardContent className="pt-6">
-              <h3 className="font-semibold text-foreground mb-2">Easy to Use</h3>
-              <p className="text-sm text-muted-foreground">
-                Simple interface designed for playing Whist without complicated rules to remember.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card variant="outlined">
-            <CardContent className="pt-6">
-              <h3 className="font-semibold text-foreground mb-2">Play Anywhere</h3>
-              <p className="text-sm text-muted-foreground">
-                Play on any device with internet connection. Your scores are saved automatically.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+      {/* Welcome + Sign out */}
+      <div className="mt-16 text-center">
+        <p className="text-sm text-muted-foreground mb-2">
+          {user?.displayName || 'Player'}
+        </p>
+        <button
+          className="text-xs uppercase tracking-[0.1em] text-terracotta hover:underline"
+          onClick={() => {
+            const store = useStore.getState();
+            store.logout();
+            router.push('/login');
+          }}
+        >
+          Sign Out
+        </button>
+      </div>
     </main>
   );
 }
