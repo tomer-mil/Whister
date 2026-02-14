@@ -29,7 +29,7 @@ export default function GamePage({
   const { gameId } = React.use(params);
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
 
   // Get state from store
   const {

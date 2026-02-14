@@ -16,7 +16,6 @@ const config: Config = {
     },
     extend: {
       colors: {
-        // CSS variable-based colors
         background: 'hsl(var(--background))',
         'background-secondary': 'hsl(var(--background-secondary))',
         foreground: 'hsl(var(--foreground))',
@@ -51,36 +50,40 @@ const config: Config = {
           DEFAULT: 'hsl(var(--success))',
           foreground: 'hsl(var(--success-foreground))',
         },
-        border: 'hsl(var(--border))',
+        border: {
+          DEFAULT: 'hsl(var(--border))',
+          strong: 'hsl(var(--border-strong))',
+        },
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
-        // Suit colors (adjusted for dark mode)
+        // Bauhaus suit colors
         suit: {
-          clubs: '#a1a1aa',
-          diamonds: '#f87171',
-          hearts: '#f87171',
-          spades: '#a1a1aa',
+          clubs: '#0A0A0A',
+          diamonds: '#C75233',
+          hearts: '#C75233',
+          spades: '#0A0A0A',
         },
-        // Score colors (adjusted for dark mode)
+        // Score colors
         score: {
-          positive: '#4ade80',
-          negative: '#f87171',
-          neutral: '#9ca3af',
+          positive: '#D4A030',   // ochre
+          negative: '#C75233',   // terracotta
+          neutral: '#8A8078',    // warm gray
         },
+        // Direct accent access
+        terracotta: '#C75233',
+        ochre: '#D4A030',
+        steel: '#4A6FA5',
       },
       fontFamily: {
-        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
-        mono: ['var(--font-jetbrains-mono)', 'monospace'],
+        sans: ['var(--font-josefin)', 'system-ui', 'sans-serif'],
       },
       fontSize: {
-        // Score display sizes
         'score-sm': ['1rem', { lineHeight: '1.25' }],
         'score-md': ['1.25rem', { lineHeight: '1.25' }],
         'score-lg': ['1.5rem', { lineHeight: '1.25' }],
         'score-xl': ['2rem', { lineHeight: '1.25' }],
       },
       spacing: {
-        // Safe area insets for PWA
         'safe-top': 'env(safe-area-inset-top)',
         'safe-bottom': 'env(safe-area-inset-bottom)',
         'safe-left': 'env(safe-area-inset-left)',
@@ -104,15 +107,12 @@ const config: Config = {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
         },
-        'glow-pulse': {
-          '0%, 100%': { boxShadow: '0 0 20px hsl(var(--primary) / 0.15)' },
-          '50%': { boxShadow: '0 0 30px hsl(var(--primary) / 0.25)' },
-        },
       },
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
+        lg: '0px',
+        md: '0px',
+        sm: '0px',
+        DEFAULT: '0px',
       },
     },
   },

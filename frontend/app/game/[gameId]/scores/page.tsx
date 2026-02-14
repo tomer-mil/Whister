@@ -117,7 +117,7 @@ export default function ScoreTablePage({
         throw new Error('Failed to end game');
       }
 
-      const result = await response.json();
+      await response.json();
 
       // TODO: Navigate to game results/summary page
       router.push(`/game/${gameId}`);

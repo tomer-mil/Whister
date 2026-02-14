@@ -31,7 +31,7 @@ export default function SeatingPage({
 }: {
   params: Promise<{ gameId: string }>;
 }) {
-  const { gameId } = React.use(params);
+  React.use(params);
   const router = useRouter();
 
   // Selected player for tap-to-swap interaction
