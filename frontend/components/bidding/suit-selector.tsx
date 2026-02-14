@@ -1,60 +1,50 @@
-/**
- * Suit Selector Component
- * 5 suit buttons for trump selection
- */
-
 'use client';
 
-import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
 import type { TrumpSuit } from '@/types/game';
 
 export interface SuitSelectorProps {
   value: TrumpSuit | null;
   onChange: (suit: TrumpSuit) => void;
   disabled?: boolean;
-  label?: string;
 }
 
-const SUITS: Array<{ suit: TrumpSuit; label: string; symbol: string; color: string }> = [
-  { suit: 'clubs', label: 'Clubs', symbol: '♣', color: 'text-gray-900' },
-  { suit: 'diamonds', label: 'Diamonds', symbol: '♦', color: 'text-red-600' },
-  { suit: 'hearts', label: 'Hearts', symbol: '♥', color: 'text-red-600' },
-  { suit: 'spades', label: 'Spades', symbol: '♠', color: 'text-gray-900' },
-  { suit: 'no_trump', label: 'No Trump', symbol: 'NT', color: 'text-blue-600' },
+const SUITS: Array<{ suit: TrumpSuit; symbol: string; color: string }> = [
+  { suit: 'clubs', symbol: '♣', color: 'text-suit-clubs' },
+  { suit: 'diamonds', symbol: '♦', color: 'text-suit-diamonds' },
+  { suit: 'hearts', symbol: '♥', color: 'text-suit-hearts' },
+  { suit: 'spades', symbol: '♠', color: 'text-suit-spades' },
+  { suit: 'no_trump', symbol: 'NT', color: 'text-steel' },
 ];
 
 export function SuitSelector({
   value,
   onChange,
   disabled = false,
-  label,
 }: SuitSelectorProps) {
   return (
-    <div className="flex flex-col items-center gap-3">
-      {label && <p className="text-sm font-medium text-gray-600">{label}</p>}
-
-      <div className="flex gap-2 flex-wrap justify-center">
-        {SUITS.map((suit) => (
-          <motion.div
-            key={suit.suit}
-            whileHover={{ scale: disabled ? 1 : 1.05 }}
-            whileTap={{ scale: disabled ? 1 : 0.95 }}
+    <div className="flex gap-2 justify-center">
+      {SUITS.map((s) => {
+        const isSelected = value === s.suit;
+        return (
+          <button
+            key={s.suit}
+            onClick={() => !disabled && onChange(s.suit)}
+            disabled={disabled}
+            className={`
+              w-14 h-14 flex items-center justify-center text-2xl
+              border-2 transition-all active:scale-95
+              disabled:opacity-40 disabled:cursor-not-allowed
+              ${isSelected
+                ? 'border-foreground scale-105'
+                : 'border-muted hover:border-foreground'
+              }
+              ${s.suit === 'no_trump' ? 'text-base font-bold' : ''}
+            `}
           >
-            <Button
-              onClick={() => !disabled && onChange(suit.suit)}
-              disabled={disabled}
-              variant={value === suit.suit ? 'primary' : 'outline'}
-              className={`flex flex-col items-center gap-1 px-4 py-3 h-auto ${
-                value === suit.suit ? 'ring-2 ring-blue-500' : ''
-              }`}
-            >
-              <span className={`text-2xl ${suit.color}`}>{suit.symbol}</span>
-              <span className="text-xs">{suit.label}</span>
-            </Button>
-          </motion.div>
-        ))}
-      </div>
+            <span className={s.color}>{s.symbol}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
