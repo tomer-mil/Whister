@@ -15,14 +15,14 @@ for (const player of players) {
     await page.goto('/');
 
     // Home page heading
-    await expect(page.locator('h1')).toContainText('Whist Score Keeper');
+    await expect(page.locator('h1')).toContainText('WHISTER');
 
-    // Action cards present
-    await expect(page.locator('a:has-text("Create Room")')).toBeVisible();
-    await expect(page.locator('a:has-text("Join Room")')).toBeVisible();
+    // Navigation buttons present
+    await expect(page.locator('button:has-text("Create")')).toBeVisible();
+    await expect(page.locator('button:has-text("Join")')).toBeVisible();
 
-    // Logout button confirms the session is live
-    await expect(page.locator('button:has-text("Logout")')).toBeVisible();
+    // Sign out button confirms the session is live
+    await expect(page.locator('button:has-text("Sign Out")')).toBeVisible();
 
     await ctx.close();
   });
