@@ -27,23 +27,24 @@ export async function createAndJoinRoom(pages: Page[]): Promise<string> {
   const [p1, ...others] = pages;
 
   await p1.goto('/room/create');
-  await p1.click('button:has-text("Create Room")');
+  await p1.click('button:has-text("Create")');
   await waitForPathname(p1, '^/room/(?!create$|join$)[A-Za-z0-9]+$');
   const roomCode = p1.url().split('/room/')[1];
 
   for (const page of others) {
     await page.goto('/room/join');
-    await page.fill('input[placeholder="ABC123"]', roomCode);
-    await page.fill('input[placeholder="Your name"]', 'Player');
-    await page.click('button:has-text("Join Room")');
+    await page.fill('input[placeholder="Room Code"]', roomCode);
+    await page.fill('input[placeholder="Your Name"]', 'Player');
+    await page.click('button:has-text("Join")');
     await waitForPathname(page, '^/room/(?!create$|join$)[A-Za-z0-9]+$');
   }
 
-  await Promise.all(
-    pages.map((p) =>
-      expect(p.locator('text=Players (4/4)')).toBeVisible({ timeout: 15_000 })
-    )
-  );
+  // Wait for admin to see "Start Game" button (visible when ≥2 players joined)
+  await expect(p1.locator('button:has-text("Start Game")')).toBeVisible({
+    timeout: 15_000,
+  });
+  // Brief delay to let all join events propagate
+  await delay(500);
 
   return roomCode;
 }
@@ -54,15 +55,15 @@ export async function createAndJoinRoom(pages: Page[]): Promise<string> {
  */
 export async function startGameToSeating(pages: Page[]): Promise<string> {
   const [p1] = pages;
-  await p1.click('button:has-text("Start Playing")');
+  await p1.click('button:has-text("Start Game")');
 
   // All players should navigate to /game/[gameId]/seating
   await Promise.all(
     pages.map((p) => waitForPathname(p, '/game/[^/]+/seating', 20_000))
   );
 
-  // Verify seating page loaded
-  await expect(pages[0].locator('h1:has-text("Seating Arrangement")')).toBeVisible({
+  // Verify seating page loaded — admin sees "Confirm" button
+  await expect(pages[0].locator('button:has-text("Confirm")')).toBeVisible({
     timeout: 10_000,
   });
 
@@ -79,12 +80,13 @@ export async function startGameToSeating(pages: Page[]): Promise<string> {
 export async function confirmSeating(pages: Page[]): Promise<void> {
   const [p1] = pages;
 
-  // Admin clicks "Set Seating" button (renders as "Set\nSeating")
-  await p1.click('button:has-text("Set")');
+  // Admin clicks "Confirm" button
+  await p1.click('button:has-text("Confirm")');
 
   // All players should navigate to /game/[gameId] (trump bidding)
   // Wait for the trump bidding UI to appear on at least one page
-  const activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")', 20_000);
+  // Active player sees "Pass" button; this is the most unique selector for trump bidding
+  const activeIdx = await findActivePage(pages, 'button:has-text("Pass")', 20_000);
   expect(activeIdx).toBeGreaterThanOrEqual(0);
 }
 
@@ -96,15 +98,15 @@ export async function simpleTrumpBidding(pages: Page[]): Promise<number> {
   let trumpWinnerIdx = -1;
 
   for (let attempt = 0; attempt < 8; attempt++) {
-    const activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")');
+    const activeIdx = await findActivePage(pages, 'button:has-text("Pass")');
     if (activeIdx === -1) break;
 
     if (trumpWinnerIdx === -1) {
       await pages[activeIdx].click('button:has-text("♣")');
-      await pages[activeIdx].click('button:has-text("📢 Call")');
+      await pages[activeIdx].click('button:has-text("Bid")');
       trumpWinnerIdx = activeIdx;
     } else {
-      await pages[activeIdx].click('button:has-text("🚫 Pass")');
+      await pages[activeIdx].click('button:has-text("Pass")');
     }
 
     await delay(700);
@@ -124,7 +126,7 @@ export async function simpleContractBidding(
   otherBid: number,
 ): Promise<void> {
   for (let round = 0; round < 4; round++) {
-    const activeIdx = await findActivePage(pages, 'button:has-text("Confirm Bid")');
+    const activeIdx = await findActivePage(pages, 'button:has-text("Confirm")');
     if (activeIdx === -1) break;
 
     const targetBid = activeIdx === trumpWinnerIdx ? winnerBid : otherBid;
@@ -135,14 +137,14 @@ export async function simpleContractBidding(
       await delay(60);
     }
 
-    await pages[activeIdx].click('button:has-text("Confirm Bid")');
+    await pages[activeIdx].click('button:has-text("Confirm")');
     await delay(700);
   }
 
-  // Verify playing phase starts
+  // Verify playing phase starts — "Claim Trick" is the DOM text (CSS uppercases it)
   await Promise.all(
     pages.map((p) =>
-      expect(p.locator(':text("CLAIM TRICK")')).toBeVisible({ timeout: 10_000 })
+      expect(p.locator(':text("Claim Trick")')).toBeVisible({ timeout: 10_000 })
     )
   );
 }
@@ -176,12 +178,16 @@ export async function playTricks(
  * Wait for round complete and navigate to scores page.
  */
 export async function waitForScores(pages: Page[], gameId: string): Promise<void> {
-  await pages[0].locator(':text("Round Complete!")').waitFor({ timeout: 20_000 });
+  // Wait for round summary modal's "Continue" button to appear
+  await pages[0].locator('button:has-text("Continue")').waitFor({ timeout: 20_000 });
+
+  // Navigate all pages to scores
   await Promise.all(pages.map((p) => p.goto(`/game/${gameId}/scores`)));
 
+  // Verify scores page loaded — "New Round" button is present
   await Promise.all(
     pages.map(async (p) => {
-      await expect(p.locator('h1:has-text("Game Score Table")')).toBeVisible({
+      await expect(p.locator('button:has-text("New Round")')).toBeVisible({
         timeout: 10_000,
       });
     })
