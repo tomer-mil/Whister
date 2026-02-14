@@ -39,6 +39,7 @@ export default function GameLayout({ children, params }: Props) {
   // Get room code and user info from store
   const roomCode = useStore((state) => state.roomCode);
   const displayName = useStore((state) => state.user?.displayName || 'Player');
+  const status = useStore((state) => state.status);
 
   // Get join function for proper room joining (after page reload)
   const { joinRoom } = useRoomJoin();
@@ -83,6 +84,14 @@ export default function GameLayout({ children, params }: Props) {
         });
     }
   }, [roomCode, isConnected, joinRoom, displayName]);
+
+  // Navigate to seating page if game is in seating phase (e.g., after page reload)
+  React.useEffect(() => {
+    if (!gameId) return;
+    if (status === 'seating') {
+      router.push(`/game/${gameId}/seating`);
+    }
+  }, [gameId, status, router]);
 
   // Listen for room:game_starting to handle new round transitions
   // When a new round starts, refresh game state and navigate to game page

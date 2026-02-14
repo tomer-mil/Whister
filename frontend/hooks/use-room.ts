@@ -121,7 +121,7 @@ export function useRoom(_options: UseRoomOptions = {}) {
 
         // If game is in progress (bidding_trump, bidding_contract, playing), populate game players
         // NOTE: Backend sends GameStatus enum values, we map to RoundPhase values for internal state
-        if (payload.phase && ['bidding_trump', 'bidding_contract', 'playing', 'frisch'].includes(payload.phase)) {
+        if (payload.phase && ['seating', 'bidding_trump', 'bidding_contract', 'playing', 'frisch'].includes(payload.phase)) {
           const store = useStore.getState();
           store.setGameState({
             gameId: payload.game_id,
