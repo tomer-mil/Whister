@@ -23,7 +23,6 @@ export default function GamePage() {
   const roundNumber = useStore((state) => state.currentRound);
   const totalRounds = useStore((state) => state.totalRounds);
   const trumpSuit = useStore((state) => state.trumpSuit);
-  const gameType = useStore((state) => state.gameType);
   const currentUser = useStore((state) => state.user);
 
   // Get bidding state
@@ -38,7 +37,7 @@ export default function GamePage() {
   const isLastBidder = false; // TODO: Calculate based on round and bidding status
 
   // Initialize bidding hook
-  const { bidContract } = useBidding({ roomCode: roomCode ?? '' });
+  const { bidTrump, passRound, bidContract } = useBidding({ roomCode: roomCode ?? '' });
 
   const handleContractBid = async (amount: number) => {
     setError(null);
@@ -71,7 +70,6 @@ export default function GamePage() {
           roundNumber={roundNumber}
           totalRounds={totalRounds}
           trumpSuit={trumpSuit ?? undefined}
-          gameType={gameType ?? undefined}
         />
 
         {/* Game phase content */}
@@ -79,7 +77,7 @@ export default function GamePage() {
           {/* Main bidding panel */}
           <div className="lg:col-span-2">
             {(phase === 'trump_bidding' || phase === 'frisch') && roomCode && (
-              <TrumpBiddingPanel roomCode={roomCode} />
+              <TrumpBiddingPanel roomCode={roomCode} onBidTrump={bidTrump} onPass={passRound} />
             )}
 
             {phase === 'contract_bidding' && trumpSuit && (
@@ -103,7 +101,7 @@ export default function GamePage() {
             {phase === 'playing' && (
               <Card variant="elevated" className="p-8 text-center">
                 <p className="text-lg text-gray-600">
-                  🎮 Game play interface coming soon...
+                  Game play interface coming soon...
                 </p>
               </Card>
             )}
@@ -151,7 +149,7 @@ export default function GamePage() {
                   <div className="pt-3 border-t">
                     <p className="text-xs text-gray-500 uppercase">Your Status</p>
                     <p className="font-medium text-gray-900">
-                      {isYourTurn ? '🎯 Your Turn' : '⏳ Waiting'}
+                      {isYourTurn ? 'Your Turn' : 'Waiting'}
                     </p>
                   </div>
                 )}

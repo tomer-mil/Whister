@@ -78,7 +78,7 @@ export function TrickCounter({
       {/* Status */}
       <div className="space-y-2">
         <p className={`text-sm font-medium ${isOnTrack ? 'text-green-600' : 'text-red-600'}`}>
-          {isOnTrack ? '✓ On Track' : '✗ Behind'}
+          {isOnTrack ? 'On Track' : 'Behind'}
         </p>
         <p className="text-xs text-gray-500">
           {remaining} tricks remaining

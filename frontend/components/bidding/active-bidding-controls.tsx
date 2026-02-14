@@ -53,13 +53,6 @@ export function ActiveBiddingControls({
     return true;
   }, [selectedBid, selectedSuit, minimumBid, currentHighestBid, currentHighestSuit]);
 
-  const handleBidChange = (delta: number) => {
-    const newBid = selectedBid + delta;
-    if (newBid >= minimumBid && newBid <= 13) {
-      setSelectedBid(newBid);
-    }
-  };
-
   const handleCall = async () => {
     if (!isValidBid() || !selectedSuit || isLoading) return;
     try {

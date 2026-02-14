@@ -13,7 +13,7 @@ export interface TrumpBiddingPanelProps {
   onPass: () => Promise<void>;
 }
 
-export function TrumpBiddingPanel({ roomCode, onBidTrump, onPass }: TrumpBiddingPanelProps) {
+export function TrumpBiddingPanel({ roomCode: _roomCode, onBidTrump, onPass }: TrumpBiddingPanelProps) {
   const trumpBids = useStore((state) => state.trumpBids);
   const highestTrumpBid = useStore((state) => state.highestTrumpBid);
   const minimumBid = useStore((state) => state.minimumBid);

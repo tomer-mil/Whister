@@ -14,7 +14,6 @@ import { AdminControls } from '@/components/game/admin-controls';
 import { RoundSummaryModal } from '@/components/game/round-summary-modal';
 import { useBidding } from '@/hooks/use-bidding';
 import { useGame } from '@/hooks/use-game';
-import type { TrumpSuit } from '@/types/game';
 
 export default function GamePage({
   params,
@@ -159,9 +158,9 @@ export default function GamePage({
   }, [roundResults]);
 
   const getPhaseIndex = () => {
-    if (phase === 'seating') return 0;
     if (phase === 'trump_bidding' || phase === 'frisch' || phase === 'contract_bidding') return 1;
-    return 2;
+    if (phase === 'playing' || phase === 'complete') return 2;
+    return 0;
   };
 
   return (

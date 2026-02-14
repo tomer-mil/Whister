@@ -78,7 +78,7 @@ export default function ScoresPage() {
         {isGameOver && winner && (
           <Card variant="elevated" className="bg-gradient-to-r from-amber-50 to-amber-50 border-2 border-amber-300 p-6">
             <div className="text-center">
-              <p className="text-2xl font-bold text-amber-900 mb-2">🏆 Game Complete!</p>
+              <p className="text-2xl font-bold text-amber-900 mb-2">Game Complete</p>
               <p className="text-lg text-amber-800 mb-4">
                 {winner.displayName} wins with {winner.totalScore} points!
               </p>

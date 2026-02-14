@@ -30,7 +30,7 @@ export interface ContractBiddingPanelProps {
 
 export function ContractBiddingPanel({
   trumpSuit,
-  trumpWinner,
+  trumpWinner: _trumpWinner,
   currentContractSum,
   targetSum = 13,
   isYourTurn,
