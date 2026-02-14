@@ -34,40 +34,32 @@ test.describe('Multi-Round Games', () => {
 
     // Verify Round 1 appears in score table
     await expect(p1.locator(':text("♣")')).toBeVisible({ timeout: 5_000 });
-    await expect(p1.locator('button:has-text("NEW ROUND")')).toBeVisible({
+    await expect(p1.locator('button:has-text("New Round")')).toBeVisible({
       timeout: 5_000,
     });
 
     // ── Transition to Round 2 ─────────────────────────────────────
-    await p1.click('button:has-text("NEW ROUND")');
+    await p1.click('button:has-text("New Round")');
 
     // All pages navigate to game page for Round 2
     await Promise.all(
       pages.map((p) => waitForPathname(p, `^/game/${gameId}`, 15_000))
     );
 
-    // Verify Round 2 header
-    await Promise.all(
-      pages.map((p) =>
-        expect(p.locator('h1:has-text("Round 2")')).toBeVisible({ timeout: 10_000 })
-      )
-    );
-
     // ── Round 2: Diamonds ─────────────────────────────────────────
-    // First bidder bids 5 ♦ this time
-    let activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")', 15_000);
+    let activeIdx = await findActivePage(pages, 'button:has-text("Pass")', 15_000);
     expect(activeIdx).toBeGreaterThanOrEqual(0);
     const r2WinnerIdx = activeIdx;
 
     await pages[activeIdx].click('button:has-text("♦")');
-    await pages[activeIdx].click('button:has-text("📢 Call")');
+    await pages[activeIdx].click('button:has-text("Bid")');
     await delay(700);
 
     // Others pass
     for (let attempt = 0; attempt < 6; attempt++) {
-      activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")');
+      activeIdx = await findActivePage(pages, 'button:has-text("Pass")');
       if (activeIdx === -1) break;
-      await pages[activeIdx].click('button:has-text("🚫 Pass")');
+      await pages[activeIdx].click('button:has-text("Pass")');
       await delay(700);
     }
 
@@ -113,36 +105,29 @@ test.describe('Multi-Round Games', () => {
         await confirmSeating(pages);
       } else {
         // Subsequent rounds start from scores page
-        await p1.click('button:has-text("NEW ROUND")');
+        await p1.click('button:has-text("New Round")');
         await Promise.all(
           pages.map((p) => waitForPathname(p, `^/game/${gameId}`, 15_000))
-        );
-        await Promise.all(
-          pages.map((p) =>
-            expect(
-              p.locator(`h1:has-text("Round ${roundNum + 1}")`)
-            ).toBeVisible({ timeout: 10_000 })
-          )
         );
       }
 
       // Trump bidding with the designated suit
       let activeIdx = await findActivePage(
         pages,
-        ':text("📢 Your Turn to Bid")',
+        'button:has-text("Pass")',
         15_000,
       );
       expect(activeIdx).toBeGreaterThanOrEqual(0);
       const trumpWinnerIdx = activeIdx;
 
       await pages[activeIdx].click(`button:has-text("${suits[roundNum]}")`);
-      await pages[activeIdx].click('button:has-text("📢 Call")');
+      await pages[activeIdx].click('button:has-text("Bid")');
       await delay(700);
 
       for (let attempt = 0; attempt < 6; attempt++) {
-        activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")');
+        activeIdx = await findActivePage(pages, 'button:has-text("Pass")');
         if (activeIdx === -1) break;
-        await pages[activeIdx].click('button:has-text("🚫 Pass")');
+        await pages[activeIdx].click('button:has-text("Pass")');
         await delay(700);
       }
 

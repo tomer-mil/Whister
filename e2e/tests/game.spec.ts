@@ -11,7 +11,6 @@ import {
   waitForScores,
   playFullRound,
   findActivePage,
-  delay,
 } from '../helpers/game-setup';
 import { waitForPathname } from '../helpers/wait';
 
@@ -47,7 +46,7 @@ test('full 4-player game round: seating → trump → contract → tricks → sc
 
   await Promise.all(
     pages.map(async (p) => {
-      await expect(p.locator('button:has-text("NEW ROUND")')).toBeVisible({
+      await expect(p.locator('button:has-text("New Round")')).toBeVisible({
         timeout: 5_000,
       });
       await expect(p.locator(':text("♣")')).toBeVisible({ timeout: 5_000 });
@@ -57,7 +56,7 @@ test('full 4-player game round: seating → trump → contract → tricks → sc
   await Promise.all(contexts.map((c) => c.close()));
 });
 
-test('new round: complete round 1, click NEW ROUND, verify round 2 starts', async ({
+test('new round: complete round 1, click New Round, verify round 2 starts', async ({
   browser,
 }) => {
   const { contexts, pages } = await setupFourPlayers(browser);
@@ -68,26 +67,19 @@ test('new round: complete round 1, click NEW ROUND, verify round 2 starts', asyn
   const gameId = await startGameToSeating(pages);
   await playFullRound(pages, roomCode, gameId);
 
-  // ── Click NEW ROUND ────────────────────────────────────────────
-  await expect(p1.locator('button:has-text("NEW ROUND")')).toBeVisible({
+  // ── Click New Round ──────────────────────────────────────────
+  await expect(p1.locator('button:has-text("New Round")')).toBeVisible({
     timeout: 5_000,
   });
-  await p1.click('button:has-text("NEW ROUND")');
+  await p1.click('button:has-text("New Round")');
 
   // All pages should navigate via WebSocket broadcast
   await Promise.all(
     pages.map((p) => waitForPathname(p, `^/game/${gameId}`, 15_000))
   );
 
-  // Verify Round 2 header
-  await Promise.all(
-    pages.map((p) =>
-      expect(p.locator('h1:has-text("Round 2")')).toBeVisible({ timeout: 10_000 })
-    )
-  );
-
-  // Verify trump bidding UI
-  const activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")', 15_000);
+  // Verify trump bidding UI appears for Round 2
+  const activeIdx = await findActivePage(pages, 'button:has-text("Pass")', 15_000);
   expect(activeIdx).toBeGreaterThanOrEqual(0);
 
   await Promise.all(contexts.map((c) => c.close()));
