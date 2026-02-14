@@ -17,6 +17,7 @@ from app.middleware.logging import LoggingMiddleware
 from app.services.bidding_service import BiddingService
 from app.services.scoring_service import ScoringService
 from app.websocket.game_events import register_bidding_handlers, register_playing_handlers
+from app.websocket.seating_events import register_seating_handlers
 from app.websocket.room_manager import RoomManager
 from app.websocket.server import (
     _connection_contexts,
@@ -57,6 +58,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         )
         register_playing_handlers(
             sio, room_manager, bidding_service, scoring_service, _connection_contexts
+        )
+        register_seating_handlers(
+            sio, room_manager, _connection_contexts
         )
 
     yield
