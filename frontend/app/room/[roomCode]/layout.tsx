@@ -26,7 +26,7 @@ export default function RoomLayout({ children, params }: Props) {
   return (
     <RoomLayoutClient
       params={params}
-      onGameStarting={(gameId: string) => router.push(`/game/${gameId}`)}
+      onGameStarting={(gameId: string) => router.push(`/game/${gameId}/seating`)}
     >
       {children}
     </RoomLayoutClient>
