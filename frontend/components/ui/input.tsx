@@ -19,7 +19,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-sm font-medium text-muted-foreground mb-2"
+            className="block text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground mb-1"
           >
             {label}
           </label>
@@ -28,22 +28,21 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           id={inputId}
           type={type}
           className={cn(
-            'flex h-11 w-full rounded-lg border border-border bg-input px-4 py-2 ' +
-            'text-base text-foreground placeholder:text-muted-foreground ' +
-            'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background focus:border-primary ' +
-            'disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground ' +
+            'w-full bg-transparent border-0 border-b-2 border-muted px-0 py-3 text-base text-foreground ' +
+            'placeholder:text-muted-foreground focus:border-foreground focus:outline-none ' +
+            'disabled:cursor-not-allowed disabled:opacity-40 ' +
             'transition-colors',
-            error && 'border-destructive focus:ring-destructive',
+            error && 'border-terracotta focus:border-terracotta',
             className
           )}
           ref={ref}
           {...props}
         />
         {error && (
-          <p className="mt-1.5 text-sm text-destructive">{error}</p>
+          <p className="text-xs text-terracotta mt-1">{error}</p>
         )}
         {helperText && !error && (
-          <p className="mt-1.5 text-sm text-muted-foreground">{helperText}</p>
+          <p className="text-xs text-muted-foreground mt-1">{helperText}</p>
         )}
       </div>
     );
