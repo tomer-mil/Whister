@@ -1,12 +1,15 @@
 /**
  * Seating Selection Page
- * Admin arranges player seating order via drag-and-drop.
- * Non-admin players see the arrangement update in real time.
+ *
+ * Admin arranges player seating order before the first round.
+ * Primary interaction: tap-to-select, tap-to-swap (mobile-friendly).
+ * Secondary interaction: drag-and-drop (desktop enhancement).
+ * Non-admin players see updates in real time.
  */
 
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/stores';
 import { useSocketEvent } from '@/hooks/use-socket-event';
@@ -30,10 +33,19 @@ export default function SeatingPage({
 }) {
   const { gameId } = React.use(params);
   const router = useRouter();
+
+  // Selected player for tap-to-swap interaction
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+
+  // Drag-and-drop state (desktop enhancement)
   const [draggedPlayerId, setDraggedPlayerId] = useState<string | null>(null);
   const [dragOverPlayerId, setDragOverPlayerId] = useState<string | null>(null);
+
   const [isConfirming, setIsConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Track whether a drag actually moved (to distinguish click from drag)
+  const didDragRef = useRef(false);
 
   const { roomCode, players, isAdmin } = useStore((state) => ({
     roomCode: state.roomCode,
@@ -46,7 +58,22 @@ export default function SeatingPage({
     .filter((p) => p.seatPosition !== null)
     .sort((a, b) => (a.seatPosition ?? 0) - (b.seatPosition ?? 0));
 
-  // Listen for seating updates from server
+  // --- Socket event handlers ---
+
+  const emitSwap = useCallback(
+    (playerAId: string, playerBId: string) => {
+      const socket = socketManager.getSocket();
+      if (socket?.connected && roomCode) {
+        socket.emit('game:seating_swap', {
+          room_code: roomCode,
+          player_a_id: playerAId,
+          player_b_id: playerBId,
+        });
+      }
+    },
+    [roomCode]
+  );
+
   useSocketEvent(
     'game:seating_updated',
     useCallback((payload: SeatingUpdatedPayload) => {
@@ -62,7 +89,6 @@ export default function SeatingPage({
     }, [])
   );
 
-  // Listen for seating confirmed — navigate to game page
   useSocketEvent(
     'game:seating_set',
     useCallback(
@@ -82,7 +108,6 @@ export default function SeatingPage({
     )
   );
 
-  // Listen for socket errors
   useSocketEvent(
     'error',
     useCallback((payload: { message?: string }) => {
@@ -91,7 +116,33 @@ export default function SeatingPage({
     }, [])
   );
 
-  // --- Drag-and-drop handlers (admin only) ---
+  // --- Tap-to-swap (primary interaction, works on mobile + desktop) ---
+
+  const handlePlayerClick = useCallback(
+    (playerId: string) => {
+      if (!isAdmin) return;
+      // If a drag just happened, ignore the click
+      if (didDragRef.current) {
+        didDragRef.current = false;
+        return;
+      }
+
+      if (!selectedPlayerId) {
+        // First tap: select this player
+        setSelectedPlayerId(playerId);
+      } else if (selectedPlayerId === playerId) {
+        // Tap same player: deselect
+        setSelectedPlayerId(null);
+      } else {
+        // Tap different player: swap them
+        emitSwap(selectedPlayerId, playerId);
+        setSelectedPlayerId(null);
+      }
+    },
+    [isAdmin, selectedPlayerId, emitSwap]
+  );
+
+  // --- Drag-and-drop (desktop enhancement) ---
 
   const handleDragStart = useCallback(
     (e: React.DragEvent, playerId: string) => {
@@ -99,9 +150,15 @@ export default function SeatingPage({
       e.dataTransfer.setData('text/plain', playerId);
       e.dataTransfer.effectAllowed = 'move';
       setDraggedPlayerId(playerId);
+      setSelectedPlayerId(null);
+      didDragRef.current = false;
     },
     [isAdmin]
   );
+
+  const handleDrag = useCallback(() => {
+    didDragRef.current = true;
+  }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -109,7 +166,8 @@ export default function SeatingPage({
   }, []);
 
   const handleDragEnter = useCallback(
-    (playerId: string) => {
+    (e: React.DragEvent, playerId: string) => {
+      e.preventDefault();
       if (draggedPlayerId && draggedPlayerId !== playerId) {
         setDragOverPlayerId(playerId);
       }
@@ -117,8 +175,12 @@ export default function SeatingPage({
     [draggedPlayerId]
   );
 
-  const handleDragLeave = useCallback(() => {
-    setDragOverPlayerId(null);
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    // Only clear if leaving the actual target (not entering a child)
+    const related = e.relatedTarget as Node | null;
+    if (!e.currentTarget.contains(related)) {
+      setDragOverPlayerId(null);
+    }
   }, []);
 
   const handleDrop = useCallback(
@@ -126,29 +188,24 @@ export default function SeatingPage({
       e.preventDefault();
       setDragOverPlayerId(null);
 
-      if (!isAdmin || !draggedPlayerId || draggedPlayerId === targetPlayerId) {
+      const sourcePlayerId = e.dataTransfer.getData('text/plain');
+      if (!sourcePlayerId || sourcePlayerId === targetPlayerId) {
         setDraggedPlayerId(null);
         return;
       }
 
-      const socket = socketManager.getSocket();
-      if (socket?.connected && roomCode) {
-        socket.emit('game:seating_swap', {
-          room_code: roomCode,
-          player_a_id: draggedPlayerId,
-          player_b_id: targetPlayerId,
-        });
-      }
-
+      emitSwap(sourcePlayerId, targetPlayerId);
       setDraggedPlayerId(null);
     },
-    [isAdmin, draggedPlayerId, roomCode]
+    [emitSwap]
   );
 
   const handleDragEnd = useCallback(() => {
     setDraggedPlayerId(null);
     setDragOverPlayerId(null);
   }, []);
+
+  // --- Confirm seating ---
 
   const handleConfirmSeating = useCallback(() => {
     if (!roomCode) return;
@@ -161,6 +218,7 @@ export default function SeatingPage({
 
     setError(null);
     setIsConfirming(true);
+    setSelectedPlayerId(null);
     socket.emit('game:seating_confirmed', { room_code: roomCode });
 
     // Reset button after timeout in case server doesn't respond
@@ -197,7 +255,9 @@ export default function SeatingPage({
         {/* Instructions */}
         <p className="text-sm text-muted-foreground mb-6 text-center">
           {isAdmin
-            ? 'Drag players to swap their positions. Click "Set Seating" when ready.'
+            ? selectedPlayerId
+              ? 'Now tap another player to swap positions.'
+              : 'Tap a player to select, then tap another to swap.'
             : 'Waiting for admin to arrange seating...'}
         </p>
 
@@ -227,22 +287,32 @@ export default function SeatingPage({
 
             const isDragging = draggedPlayerId === player.userId;
             const isDragOver = dragOverPlayerId === player.userId;
+            const isSelected = selectedPlayerId === player.userId;
+            const isSwapTarget = selectedPlayerId !== null && selectedPlayerId !== player.userId;
 
             return (
               <div
                 key={player.userId}
-                className="absolute flex flex-col items-center gap-1 -translate-x-1/2 -translate-y-1/2 transition-all duration-300"
+                className={`
+                  absolute flex flex-col items-center gap-1
+                  -translate-x-1/2 -translate-y-1/2
+                  transition-all duration-300
+                  ${isAdmin ? 'cursor-pointer' : ''}
+                `}
                 style={{
                   left: `${pos.x}%`,
                   top: `${pos.y}%`,
                 }}
+                // Click handler for tap-to-swap
+                onClick={() => handlePlayerClick(player.userId)}
+                // Drop zone: entire seat area (label + circle)
                 onDragOver={isAdmin ? handleDragOver : undefined}
-                onDragEnter={isAdmin ? () => handleDragEnter(player.userId) : undefined}
+                onDragEnter={isAdmin ? (e) => handleDragEnter(e, player.userId) : undefined}
                 onDragLeave={isAdmin ? handleDragLeave : undefined}
                 onDrop={isAdmin ? (e) => handleDrop(e, player.userId) : undefined}
               >
                 {/* Seat number label */}
-                <span className="text-xs font-medium text-muted-foreground">
+                <span className="text-xs font-medium text-muted-foreground select-none pointer-events-none">
                   #{pos.label}
                 </span>
 
@@ -250,24 +320,30 @@ export default function SeatingPage({
                 <div
                   draggable={isAdmin}
                   onDragStart={isAdmin ? (e) => handleDragStart(e, player.userId) : undefined}
+                  onDrag={isAdmin ? handleDrag : undefined}
                   onDragEnd={isAdmin ? handleDragEnd : undefined}
                   className={`
-                    w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center
+                    w-16 h-16 sm:w-20 sm:h-20 rounded-full
+                    flex items-center justify-center select-none
                     text-xs sm:text-sm font-semibold text-center
                     border-2 transition-all duration-200
-                    ${isAdmin ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}
+                    ${isAdmin ? 'cursor-pointer active:scale-95' : 'cursor-default'}
                     ${isDragging
                       ? 'opacity-50 scale-90 border-primary bg-primary/20'
                       : isDragOver
                         ? 'scale-110 border-primary bg-primary/30 ring-2 ring-primary/50'
-                        : player.isConnected
-                          ? 'border-primary bg-primary/10 text-foreground'
-                          : 'border-muted bg-muted/30 text-muted-foreground opacity-60'
+                        : isSelected
+                          ? 'scale-110 border-primary bg-primary/30 ring-2 ring-primary/60 shadow-lg'
+                          : isSwapTarget
+                            ? 'border-primary/60 bg-primary/5 ring-1 ring-primary/30'
+                            : player.isConnected
+                              ? 'border-primary bg-primary/10 text-foreground'
+                              : 'border-muted bg-muted/30 text-muted-foreground opacity-60'
                     }
-                    ${isAdmin && !isDragging && !isDragOver ? 'hover:border-primary/80 hover:shadow-md' : ''}
+                    ${isAdmin && !isDragging && !isSelected ? 'hover:border-primary/80 hover:shadow-md' : ''}
                   `}
                 >
-                  <span className="px-1 leading-tight truncate max-w-[3.5rem] sm:max-w-[4.5rem]">
+                  <span className="pointer-events-none px-1 leading-tight truncate max-w-[3.5rem] sm:max-w-[4.5rem]">
                     {player.displayName}
                   </span>
                 </div>
