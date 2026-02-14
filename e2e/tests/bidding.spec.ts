@@ -21,16 +21,16 @@ test.describe('Trump Bidding – Complex Scenarios', () => {
     await confirmSeating(pages);
 
     // First bidder bids 5 ♣
-    let activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")');
+    let activeIdx = await findActivePage(pages, 'button:has-text("Pass")');
     expect(activeIdx).toBeGreaterThanOrEqual(0);
     const firstBidderIdx = activeIdx;
 
     await pages[activeIdx].click('button:has-text("♣")');
-    await pages[activeIdx].click('button:has-text("📢 Call")');
+    await pages[activeIdx].click('button:has-text("Bid")');
     await delay(700);
 
     // Second bidder outbids with 6 ♣
-    activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")');
+    activeIdx = await findActivePage(pages, 'button:has-text("Pass")');
     expect(activeIdx).toBeGreaterThanOrEqual(0);
     expect(activeIdx).not.toBe(firstBidderIdx); // Different player
     const outbidderIdx = activeIdx;
@@ -41,16 +41,16 @@ test.describe('Trump Bidding – Complex Scenarios', () => {
     await delay(100);
 
     await pages[activeIdx].click('button:has-text("♣")');
-    await pages[activeIdx].click('button:has-text("📢 Call")');
+    await pages[activeIdx].click('button:has-text("Bid")');
     await delay(700);
 
     // Remaining players pass (could be 2 or 3 passes depending on
     // whether first bidder also passes)
     let passCount = 0;
     for (let attempt = 0; attempt < 6; attempt++) {
-      activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")');
+      activeIdx = await findActivePage(pages, 'button:has-text("Pass")');
       if (activeIdx === -1) break;
-      await pages[activeIdx].click('button:has-text("🚫 Pass")');
+      await pages[activeIdx].click('button:has-text("Pass")');
       passCount++;
       await delay(700);
     }
@@ -65,7 +65,7 @@ test.describe('Trump Bidding – Complex Scenarios', () => {
     // Contract bidding should start with outbidder
     const contractBidderIdx = await findActivePage(
       pages,
-      'button:has-text("Confirm Bid")',
+      'button:has-text("Confirm")',
       10_000,
     );
     expect(contractBidderIdx).toBe(outbidderIdx);
@@ -80,23 +80,23 @@ test.describe('Trump Bidding – Complex Scenarios', () => {
     await confirmSeating(pages);
 
     // First bidder bids 5 ♣ (clubs = lowest suit)
-    let activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")');
+    let activeIdx = await findActivePage(pages, 'button:has-text("Pass")');
     await pages[activeIdx].click('button:has-text("♣")');
-    await pages[activeIdx].click('button:has-text("📢 Call")');
+    await pages[activeIdx].click('button:has-text("Bid")');
     await delay(700);
 
     // Second bidder outbids with 5 ♥ (hearts > clubs at same amount)
-    activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")');
+    activeIdx = await findActivePage(pages, 'button:has-text("Pass")');
     const suitOutbidderIdx = activeIdx;
     await pages[activeIdx].click('button:has-text("♥")');
-    await pages[activeIdx].click('button:has-text("📢 Call")');
+    await pages[activeIdx].click('button:has-text("Bid")');
     await delay(700);
 
     // Everyone else passes
     for (let attempt = 0; attempt < 6; attempt++) {
-      activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")');
+      activeIdx = await findActivePage(pages, 'button:has-text("Pass")');
       if (activeIdx === -1) break;
-      await pages[activeIdx].click('button:has-text("🚫 Pass")');
+      await pages[activeIdx].click('button:has-text("Pass")');
       await delay(700);
     }
 
@@ -110,7 +110,7 @@ test.describe('Trump Bidding – Complex Scenarios', () => {
     // Contract bidding should start with the suit outbidder
     const contractBidderIdx = await findActivePage(
       pages,
-      'button:has-text("Confirm Bid")',
+      'button:has-text("Confirm")',
       10_000,
     );
     expect(contractBidderIdx).toBe(suitOutbidderIdx);
@@ -126,16 +126,16 @@ test.describe('Trump Bidding – Complex Scenarios', () => {
 
     // All 4 players pass without anyone bidding
     for (let i = 0; i < 4; i++) {
-      const activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")');
+      const activeIdx = await findActivePage(pages, 'button:has-text("Pass")');
       expect(activeIdx).toBeGreaterThanOrEqual(0);
-      await pages[activeIdx].click('button:has-text("🚫 Pass")');
+      await pages[activeIdx].click('button:has-text("Pass")');
       await delay(700);
     }
 
     // Frisch should be triggered - bidding starts over with higher minimum
     // The frisch event should broadcast and reset the bidding UI
     // A new "Your Turn to Bid" should appear (first bidder gets turn again)
-    const activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")', 15_000);
+    const activeIdx = await findActivePage(pages, 'button:has-text("Pass")', 15_000);
     expect(activeIdx).toBeGreaterThanOrEqual(0);
 
     // Now bid successfully (minimum is now 6 after frisch)
@@ -144,14 +144,14 @@ test.describe('Trump Bidding – Complex Scenarios', () => {
     const plusBtn = pages[activeIdx].locator('button:has-text("+")').first();
     await plusBtn.click();
     await delay(100);
-    await pages[activeIdx].click('button:has-text("📢 Call")');
+    await pages[activeIdx].click('button:has-text("Bid")');
     await delay(700);
 
     // Others pass
     for (let attempt = 0; attempt < 6; attempt++) {
-      const idx = await findActivePage(pages, ':text("📢 Your Turn to Bid")');
+      const idx = await findActivePage(pages, 'button:has-text("Pass")');
       if (idx === -1) break;
-      await pages[idx].click('button:has-text("🚫 Pass")');
+      await pages[idx].click('button:has-text("Pass")');
       await delay(700);
     }
 
@@ -174,24 +174,24 @@ test.describe('Trump Bidding – Complex Scenarios', () => {
     const bidders: number[] = [];
 
     // P1 bids 5 ♣
-    let activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")');
+    let activeIdx = await findActivePage(pages, 'button:has-text("Pass")');
     bidders.push(activeIdx);
     await pages[activeIdx].click('button:has-text("♣")');
-    await pages[activeIdx].click('button:has-text("📢 Call")');
+    await pages[activeIdx].click('button:has-text("Bid")');
     await delay(700);
 
     // P2 outbids 6 ♣
-    activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")');
+    activeIdx = await findActivePage(pages, 'button:has-text("Pass")');
     bidders.push(activeIdx);
     const plusBtn1 = pages[activeIdx].locator('button:has-text("+")').first();
     await plusBtn1.click();
     await delay(100);
     await pages[activeIdx].click('button:has-text("♣")');
-    await pages[activeIdx].click('button:has-text("📢 Call")');
+    await pages[activeIdx].click('button:has-text("Bid")');
     await delay(700);
 
     // P3 outbids 7 ♠
-    activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")');
+    activeIdx = await findActivePage(pages, 'button:has-text("Pass")');
     bidders.push(activeIdx);
     const plusBtn2 = pages[activeIdx].locator('button:has-text("+")').first();
     await plusBtn2.click();
@@ -199,15 +199,15 @@ test.describe('Trump Bidding – Complex Scenarios', () => {
     await plusBtn2.click();
     await delay(100);
     await pages[activeIdx].click('button:has-text("♠")');
-    await pages[activeIdx].click('button:has-text("📢 Call")');
+    await pages[activeIdx].click('button:has-text("Bid")');
     await delay(700);
 
     // Everyone else passes
     let finalWinnerIdx = bidders[2]; // P3 should win
     for (let attempt = 0; attempt < 6; attempt++) {
-      activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")');
+      activeIdx = await findActivePage(pages, 'button:has-text("Pass")');
       if (activeIdx === -1) break;
-      await pages[activeIdx].click('button:has-text("🚫 Pass")');
+      await pages[activeIdx].click('button:has-text("Pass")');
       await delay(700);
     }
 
@@ -221,7 +221,7 @@ test.describe('Trump Bidding – Complex Scenarios', () => {
     // Contract bidding should start with the final winner (P3)
     const contractBidderIdx = await findActivePage(
       pages,
-      'button:has-text("Confirm Bid")',
+      'button:has-text("Confirm")',
       10_000,
     );
     expect(contractBidderIdx).toBe(finalWinnerIdx);
@@ -241,14 +241,14 @@ test.describe('Contract Bidding – Edge Cases', () => {
     // Simple trump: first bids 5 ♣, others pass
     let trumpWinnerIdx = -1;
     for (let attempt = 0; attempt < 8; attempt++) {
-      const activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")');
+      const activeIdx = await findActivePage(pages, 'button:has-text("Pass")');
       if (activeIdx === -1) break;
       if (trumpWinnerIdx === -1) {
         await pages[activeIdx].click('button:has-text("♣")');
-        await pages[activeIdx].click('button:has-text("📢 Call")');
+        await pages[activeIdx].click('button:has-text("Bid")');
         trumpWinnerIdx = activeIdx;
       } else {
-        await pages[activeIdx].click('button:has-text("🚫 Pass")');
+        await pages[activeIdx].click('button:has-text("Pass")');
       }
       await delay(700);
     }
@@ -256,7 +256,7 @@ test.describe('Contract Bidding – Edge Cases', () => {
     // Contract bidding: trump winner bids 5, others bid 4 each
     // Total = 5 + 4 + 4 + 4 = 17 → OVER game
     for (let round = 0; round < 4; round++) {
-      const activeIdx = await findActivePage(pages, 'button:has-text("Confirm Bid")');
+      const activeIdx = await findActivePage(pages, 'button:has-text("Confirm")');
       if (activeIdx === -1) break;
 
       const targetBid = activeIdx === trumpWinnerIdx ? 5 : 4;
@@ -265,14 +265,14 @@ test.describe('Contract Bidding – Edge Cases', () => {
         await plusBtn.click();
         await delay(60);
       }
-      await pages[activeIdx].click('button:has-text("Confirm Bid")');
+      await pages[activeIdx].click('button:has-text("Confirm")');
       await delay(700);
     }
 
     // Should reach playing phase
     await Promise.all(
       pages.map((p) =>
-        expect(p.locator(':text("CLAIM TRICK")')).toBeVisible({ timeout: 10_000 })
+        expect(p.locator(':text("Claim Trick")')).toBeVisible({ timeout: 10_000 })
       )
     );
 
@@ -292,14 +292,14 @@ test.describe('Contract Bidding – Edge Cases', () => {
     // Simple trump
     let trumpWinnerIdx = -1;
     for (let attempt = 0; attempt < 8; attempt++) {
-      const activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")');
+      const activeIdx = await findActivePage(pages, 'button:has-text("Pass")');
       if (activeIdx === -1) break;
       if (trumpWinnerIdx === -1) {
         await pages[activeIdx].click('button:has-text("♣")');
-        await pages[activeIdx].click('button:has-text("📢 Call")');
+        await pages[activeIdx].click('button:has-text("Bid")');
         trumpWinnerIdx = activeIdx;
       } else {
-        await pages[activeIdx].click('button:has-text("🚫 Pass")');
+        await pages[activeIdx].click('button:has-text("Pass")');
       }
       await delay(700);
     }
@@ -307,7 +307,7 @@ test.describe('Contract Bidding – Edge Cases', () => {
     // Contract bidding: trump winner bids 5, others bid 1 each
     // Total = 5 + 1 + 1 + 1 = 8 → UNDER game
     for (let round = 0; round < 4; round++) {
-      const activeIdx = await findActivePage(pages, 'button:has-text("Confirm Bid")');
+      const activeIdx = await findActivePage(pages, 'button:has-text("Confirm")');
       if (activeIdx === -1) break;
 
       const targetBid = activeIdx === trumpWinnerIdx ? 5 : 1;
@@ -316,14 +316,14 @@ test.describe('Contract Bidding – Edge Cases', () => {
         await plusBtn.click();
         await delay(60);
       }
-      await pages[activeIdx].click('button:has-text("Confirm Bid")');
+      await pages[activeIdx].click('button:has-text("Confirm")');
       await delay(700);
     }
 
     // Should reach playing phase
     await Promise.all(
       pages.map((p) =>
-        expect(p.locator(':text("CLAIM TRICK")')).toBeVisible({ timeout: 10_000 })
+        expect(p.locator(':text("Claim Trick")')).toBeVisible({ timeout: 10_000 })
       )
     );
 
@@ -343,23 +343,23 @@ test.describe('Contract Bidding – Edge Cases', () => {
     // Simple trump
     let trumpWinnerIdx = -1;
     for (let attempt = 0; attempt < 8; attempt++) {
-      const activeIdx = await findActivePage(pages, ':text("📢 Your Turn to Bid")');
+      const activeIdx = await findActivePage(pages, 'button:has-text("Pass")');
       if (activeIdx === -1) break;
       if (trumpWinnerIdx === -1) {
         await pages[activeIdx].click('button:has-text("♣")');
-        await pages[activeIdx].click('button:has-text("📢 Call")');
+        await pages[activeIdx].click('button:has-text("Bid")');
         trumpWinnerIdx = activeIdx;
       } else {
-        await pages[activeIdx].click('button:has-text("🚫 Pass")');
+        await pages[activeIdx].click('button:has-text("Pass")');
       }
       await delay(700);
     }
 
     // Contract bidding: trump winner bids 5, others bid 0
     // Total = 5 + 0 + 0 + 0 = 5 → UNDER game
-    // Note: bidding 0 means just clicking "Confirm Bid" without clicking "+"
+    // Note: bidding 0 means just clicking "Confirm" without clicking "+"
     for (let round = 0; round < 4; round++) {
-      const activeIdx = await findActivePage(pages, 'button:has-text("Confirm Bid")');
+      const activeIdx = await findActivePage(pages, 'button:has-text("Confirm")');
       if (activeIdx === -1) break;
 
       if (activeIdx === trumpWinnerIdx) {
@@ -370,14 +370,14 @@ test.describe('Contract Bidding – Edge Cases', () => {
         }
       }
       // Non-trump-winners: bid 0 (just confirm without incrementing)
-      await pages[activeIdx].click('button:has-text("Confirm Bid")');
+      await pages[activeIdx].click('button:has-text("Confirm")');
       await delay(700);
     }
 
     // Should reach playing phase
     await Promise.all(
       pages.map((p) =>
-        expect(p.locator(':text("CLAIM TRICK")')).toBeVisible({ timeout: 10_000 })
+        expect(p.locator(':text("Claim Trick")')).toBeVisible({ timeout: 10_000 })
       )
     );
 
