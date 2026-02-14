@@ -1,15 +1,20 @@
 import { Variants, Transition } from 'framer-motion';
 
+/**
+ * Bauhaus Animation Config
+ *
+ * Mechanical precision — no springs, no bounce.
+ * Ease-out for entries, ease-in for exits.
+ */
+
 // ============================================================
 // Transitions
 // ============================================================
 
 export const transitions = {
-  fast: { duration: 0.15, ease: 'easeOut' } as Transition,
-  normal: { duration: 0.25, ease: 'easeOut' } as Transition,
-  slow: { duration: 0.4, ease: 'easeOut' } as Transition,
-  spring: { type: 'spring', stiffness: 400, damping: 30 } as Transition,
-  springBouncy: { type: 'spring', stiffness: 500, damping: 20 } as Transition,
+  fast: { duration: 0.1, ease: 'easeOut' } as Transition,
+  normal: { duration: 0.2, ease: 'easeOut' } as Transition,
+  slow: { duration: 0.3, ease: 'easeOut' } as Transition,
 };
 
 // ============================================================
@@ -18,126 +23,93 @@ export const transitions = {
 
 export const fadeIn: Variants = {
   initial: { opacity: 0 },
-  animate: { opacity: 1 },
-  exit: { opacity: 0 },
+  animate: { opacity: 1, transition: transitions.normal },
+  exit: { opacity: 0, transition: transitions.fast },
 };
 
 export const slideUp: Variants = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -20 },
+  initial: { opacity: 0, y: 30 },
+  animate: { opacity: 1, y: 0, transition: transitions.normal },
+  exit: { opacity: 0, y: -30, transition: transitions.fast },
 };
 
 export const slideIn: Variants = {
-  initial: { opacity: 0, x: -20 },
-  animate: { opacity: 1, x: 0 },
-  exit: { opacity: 0, x: 20 },
+  initial: { opacity: 0, x: -30 },
+  animate: { opacity: 1, x: 0, transition: transitions.normal },
+  exit: { opacity: 0, x: 30, transition: transitions.fast },
 };
 
-export const scale: Variants = {
-  initial: { opacity: 0, scale: 0.95 },
-  animate: { opacity: 1, scale: 1 },
-  exit: { opacity: 0, scale: 0.95 },
-};
-
-export const popIn: Variants = {
-  initial: { opacity: 0, scale: 0.8 },
+/** Stamp effect — replaces popIn/scale. Scale 1.3→1.0 snap. */
+export const stampIn: Variants = {
+  initial: { opacity: 0, scale: 1.3 },
   animate: {
     opacity: 1,
     scale: 1,
-    transition: transitions.springBouncy,
+    transition: { duration: 0.15, ease: 'easeOut' },
   },
-  exit: { opacity: 0, scale: 0.8 },
+  exit: { opacity: 0, scale: 1.3, transition: transitions.fast },
 };
 
 // ============================================================
 // Component-Specific Variants
 // ============================================================
 
-// Player card joining animation
+/** PlayerShape draws on via scale from 0 with snap */
 export const playerCardVariants: Variants = {
-  initial: { opacity: 0, scale: 0.8, y: 20 },
+  initial: { opacity: 0, scale: 0 },
   animate: {
     opacity: 1,
     scale: 1,
-    y: 0,
-    transition: transitions.spring,
+    transition: { duration: 0.2, ease: 'easeOut' },
   },
   exit: {
     opacity: 0,
-    scale: 0.8,
+    scale: 0,
+    transition: transitions.fast,
+  },
+};
+
+/** Bid placed — stamp effect */
+export const bidPlacedVariants: Variants = {
+  initial: { opacity: 0, scale: 1.3 },
+  animate: {
+    opacity: 1,
+    scale: 1,
+    transition: { duration: 0.15, ease: 'easeOut' },
+  },
+};
+
+/** Score change — vertical slide (old up+out, new up+in) */
+export const scoreChangeVariants: Variants = {
+  initial: { opacity: 0, y: 20 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    transition: transitions.normal,
+  },
+  exit: {
+    opacity: 0,
     y: -20,
     transition: transitions.fast,
   },
 };
 
-// Bid placed animation
-export const bidPlacedVariants: Variants = {
-  initial: { opacity: 0, scale: 0.5 },
-  animate: {
-    opacity: 1,
-    scale: 1,
-    transition: {
-      type: 'spring',
-      stiffness: 500,
-      damping: 25,
-    },
-  },
-};
-
-// Score change animation
-export const scoreChangeVariants: Variants = {
-  initial: { opacity: 0, scale: 1.2 },
-  animate: {
-    opacity: 1,
-    scale: 1,
-    transition: {
-      duration: 0.4,
-      ease: 'easeOut',
-    },
-  },
-};
-
-// Positive score animation
-export const positiveScoreVariants: Variants = {
-  initial: { opacity: 0, y: 20, color: '#16a34a' },
-  animate: {
-    opacity: 1,
-    y: 0,
-    color: '#16a34a',
-    transition: transitions.spring,
-  },
-};
-
-// Negative score animation
-export const negativeScoreVariants: Variants = {
-  initial: { opacity: 0, y: 20, color: '#dc2626' },
-  animate: {
-    opacity: 1,
-    y: 0,
-    color: '#dc2626',
-    transition: transitions.spring,
-  },
-};
-
-// Toast animation
+/** Toast — slide in from bottom, no bounce */
 export const toastVariants: Variants = {
-  initial: { opacity: 0, y: 50, scale: 0.9 },
+  initial: { opacity: 0, y: 50 },
   animate: {
     opacity: 1,
     y: 0,
-    scale: 1,
-    transition: transitions.spring,
+    transition: transitions.normal,
   },
   exit: {
     opacity: 0,
     y: 20,
-    scale: 0.9,
     transition: transitions.fast,
   },
 };
 
-// Connection pulse animation
+/** Connection pulse — keep pulse for connected, flat for others */
 export const connectionPulseVariants: Variants = {
   connected: {
     opacity: 1,
@@ -145,7 +117,6 @@ export const connectionPulseVariants: Variants = {
   },
   connecting: {
     opacity: [0.5, 1],
-    scale: [0.95, 1.05],
     transition: {
       repeat: Infinity,
       duration: 1,
@@ -158,7 +129,6 @@ export const connectionPulseVariants: Variants = {
   },
   reconnecting: {
     opacity: [0.5, 1],
-    scale: [0.95, 1.05],
     transition: {
       repeat: Infinity,
       duration: 1,
@@ -167,46 +137,76 @@ export const connectionPulseVariants: Variants = {
   },
 };
 
-// Dialog animations
+/** Dialog — slide up from bottom with deceleration */
 export const dialogContentVariants: Variants = {
-  initial: { opacity: 0, scale: 0.95, y: -20 },
+  initial: { opacity: 0, y: 100 },
   animate: {
     opacity: 1,
-    scale: 1,
     y: 0,
-    transition: transitions.normal,
+    transition: transitions.slow,
   },
   exit: {
     opacity: 0,
-    scale: 0.95,
-    y: -20,
-    transition: transitions.fast,
+    y: 100,
+    transition: transitions.normal,
   },
 };
 
-// Container list animation
+/** Container list animation — staggered children */
 export const containerVariants: Variants = {
   initial: { opacity: 0 },
   animate: {
     opacity: 1,
     transition: {
       staggerChildren: 0.1,
-      delayChildren: 0.2,
+      delayChildren: 0.1,
     },
   },
 };
 
-// Item animation for staggered lists
+/** Item animation for staggered lists */
 export const itemVariants: Variants = {
+  initial: { opacity: 0, x: -20 },
+  animate: {
+    opacity: 1,
+    x: 0,
+    transition: transitions.normal,
+  },
+  exit: {
+    opacity: 0,
+    x: -20,
+    transition: transitions.fast,
+  },
+};
+
+// ============================================================
+// New Bauhaus Variants
+// ============================================================
+
+/** Phase transition — horizontal line wipe */
+export const phaseTransitionVariants: Variants = {
+  initial: { scaleX: 0 },
+  animate: {
+    scaleX: 1,
+    transition: { duration: 0.3, ease: 'easeOut' },
+  },
+};
+
+/** Trick claimed — 90° rotation snap on PlayerShape */
+export const trickClaimedVariants: Variants = {
+  initial: { rotate: 0 },
+  animate: {
+    rotate: 90,
+    transition: { duration: 0.15, ease: 'easeOut' },
+  },
+};
+
+/** Score count up — number slides in from below, staggered per player */
+export const scoreCountUpVariants: Variants = {
   initial: { opacity: 0, y: 20 },
   animate: {
     opacity: 1,
     y: 0,
     transition: transitions.normal,
-  },
-  exit: {
-    opacity: 0,
-    y: -20,
-    transition: transitions.fast,
   },
 };
