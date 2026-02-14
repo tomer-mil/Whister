@@ -462,6 +462,91 @@ class RoomService:
                 ErrorCode.ROOM_NOT_ENOUGH_PLAYERS,
             )
 
+        # Update game status to SEATING (round creation happens when admin confirms seating)
+        result = await self.db.execute(select(Game).where(Game.id == game_id))
+        game = result.scalar_one()
+
+        game.status = GameStatus.SEATING
+        await self.db.flush()
+
+        # Update Redis room state
+        now = datetime.utcnow().isoformat()
+        await self.redis.hset(
+            f"room:{room_code}",
+            mapping={
+                "status": GameStatus.SEATING.value,
+                "last_activity": now,
+            },
+        )
+
+        await self._refresh_ttl(room_code)
+
+        return StartGameResponse(
+            game_id=game_id,
+            status=GameStatus.SEATING.value,
+            current_round=0,
+            first_bidder_id=game_players[0].user_id,
+            message="Game started - select seating",
+        )
+
+    async def confirm_seating(
+        self,
+        room_code: str,
+        current_user: User,
+    ) -> StartGameResponse:
+        """Confirm seating and start the first round (admin only).
+
+        Finalizes seat positions from Redis into DB and creates Round 1.
+        """
+        # Get room
+        room_data = await self.redis.hgetall(f"room:{room_code}")
+        if not room_data:
+            raise NotFoundError("Room not found", ErrorCode.ROOM_NOT_FOUND)
+
+        admin_id = UUID(room_data["admin_id"])
+
+        # Check authorization
+        if current_user.id != admin_id:
+            raise AuthorizationError("Only the room admin can confirm seating")
+
+        # Validate phase
+        if room_data.get("status") != GameStatus.SEATING.value:
+            raise ValidationError(
+                "Game is not in seating phase",
+                ErrorCode.INVALID_GAME_PHASE,
+            )
+
+        game_id = UUID(room_data["game_id"])
+
+        # Get current seating from Redis (the source of truth during seating phase)
+        players_data = await self.redis.hgetall(f"room:{room_code}:players")
+        redis_players = {}
+        for _seat, data in players_data.items():
+            player_info = PlayerInfo.model_validate_json(data)
+            redis_players[player_info.user_id] = player_info.seat_position
+
+        # Update GamePlayer records in DB with final seat positions from Redis
+        result = await self.db.execute(
+            select(GamePlayer)
+            .where(GamePlayer.game_id == game_id)
+            .order_by(GamePlayer.seat_position)
+        )
+        game_players = list(result.scalars().all())
+
+        for gp in game_players:
+            new_seat = redis_players.get(str(gp.user_id))
+            if new_seat is not None:
+                gp.seat_position = new_seat
+        await self.db.flush()
+
+        # Re-fetch ordered by new seat positions
+        result = await self.db.execute(
+            select(GamePlayer)
+            .where(GamePlayer.game_id == game_id)
+            .order_by(GamePlayer.seat_position)
+        )
+        game_players = list(result.scalars().all())
+
         # Update game status
         result = await self.db.execute(select(Game).where(Game.id == game_id))
         game = result.scalar_one()
@@ -525,16 +610,10 @@ class RoomService:
             },
         )
 
-        # Initialize empty passed players set
+        # Initialize empty round-specific data
         await self.redis.delete(f"room:{room_code}:passed_players")
-
-        # Initialize empty contracts hash
         await self.redis.delete(f"room:{room_code}:contracts")
-
-        # Initialize empty tricks hash
         await self.redis.delete(f"room:{room_code}:tricks")
-
-        # Initialize empty bid history
         await self.redis.delete(f"room:{room_code}:bid_history")
 
         await self._refresh_ttl(room_code)
@@ -544,7 +623,7 @@ class RoomService:
             status=GameStatus.BIDDING_TRUMP.value,
             current_round=1,
             first_bidder_id=first_bidder.user_id,
-            message="Game started",
+            message="Seating confirmed - Round 1 started",
         )
 
     async def start_next_round(
