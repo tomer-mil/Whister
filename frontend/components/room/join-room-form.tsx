@@ -1,7 +1,3 @@
-/**
- * Join Room Form Component
- */
-
 'use client';
 
 import { useState } from 'react';
@@ -11,10 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { roomsApi } from '@/lib/api';
 
-// Validation schema for join room
 const joinRoomSchema = z.object({
   roomCode: z
     .string()
@@ -53,7 +47,6 @@ export function JoinRoomForm() {
         display_name: data.displayName,
       });
 
-      // Redirect to room lobby
       router.push(`/room/${data.roomCode}`);
     } catch (error) {
       const errorMessage =
@@ -65,49 +58,44 @@ export function JoinRoomForm() {
   };
 
   return (
-    <Card variant="elevated">
-      <CardHeader>
-        <CardTitle className="text-center">Join Room</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* Server Error */}
-          {serverError && (
-            <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-lg">
-              {serverError}
-            </div>
-          )}
+    <div>
+      <h1 className="text-lg font-semibold uppercase tracking-[0.15em] text-foreground text-center mb-10">
+        Join a Room
+      </h1>
 
-          {/* Room Code Input */}
-          <Input
-            label="Room Code"
-            type="text"
-            placeholder="ABC123"
-            maxLength={6}
-            error={errors.roomCode?.message}
-            {...register('roomCode')}
-          />
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {serverError && (
+          <p className="text-sm text-terracotta text-center">{serverError}</p>
+        )}
 
-          {/* Display Name Input */}
-          <Input
-            label="Your Display Name"
-            type="text"
-            placeholder="Your name"
-            error={errors.displayName?.message}
-            {...register('displayName')}
-          />
+        <Input
+          type="text"
+          placeholder="Room Code"
+          maxLength={6}
+          className="text-2xl font-bold tracking-[0.2em] uppercase"
+          error={errors.roomCode?.message}
+          {...register('roomCode')}
+        />
 
-          {/* Submit Button */}
+        <Input
+          type="text"
+          placeholder="Your Name"
+          error={errors.displayName?.message}
+          {...register('displayName')}
+        />
+
+        <div className="pt-4">
           <Button
             type="submit"
             fullWidth
+            size="lg"
             disabled={isLoading}
           >
-            {isLoading ? 'Joining...' : 'Join Room'}
+            {isLoading ? 'Joining...' : 'Join'}
           </Button>
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+      </form>
+    </div>
   );
 }
 

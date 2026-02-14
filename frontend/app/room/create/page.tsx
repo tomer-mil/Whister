@@ -1,13 +1,9 @@
-/**
- * Create Room Page
- */
-
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { LoadingSpinner } from '@/components/shared/loading-spinner';
 import { roomsApi } from '@/lib/api';
 
 export default function CreateRoomPage() {
@@ -21,20 +17,13 @@ export default function CreateRoomPage() {
     setIsLoading(true);
 
     try {
-      console.log('[CreateRoom] Creating room...');
-      const accessToken = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-      console.log('[CreateRoom] Have accessToken:', !!accessToken);
-
       const response = await roomsApi.createRoom();
-      console.log('[CreateRoom] Room created:', response);
       setRoomCodeState(response.room_code);
 
-      // Auto-join the created room
       setTimeout(() => {
         router.push(`/room/${response.room_code}`);
       }, 2000);
     } catch (err) {
-      console.log('[CreateRoom] Error:', err);
       const errorMessage =
         err instanceof Error ? err.message : 'Failed to create room';
       setError(errorMessage);
@@ -44,61 +33,51 @@ export default function CreateRoomPage() {
 
   if (roomCode) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <Card variant="elevated" className="glow">
-            <CardHeader>
-              <CardTitle className="text-center">Room Created!</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6 text-center">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Your room code:</p>
-                <div className="bg-secondary rounded-lg p-6 border border-border">
-                  <p className="text-4xl font-bold text-primary tracking-widest font-mono">
-                    {roomCode}
-                  </p>
-                </div>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Redirecting to room lobby...
-              </p>
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center p-6">
+        {/* Hero room code */}
+        <p className="text-7xl sm:text-8xl font-bold tracking-[0.3em] text-foreground mb-8">
+          {roomCode}
+        </p>
+
+        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-8">
+          Share this code
+        </p>
+
+        <button
+          onClick={() => navigator.clipboard.writeText(roomCode)}
+          className="mb-12 p-2 border border-muted hover:border-foreground transition-colors"
+          aria-label="Copy room code"
+        >
+          {/* Two overlapping squares icon */}
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <rect x="6" y="6" width="12" height="12" />
+            <rect x="2" y="2" width="12" height="12" />
+          </svg>
+        </button>
+
+        <p className="text-sm text-muted-foreground mb-4">Redirecting...</p>
+        <LoadingSpinner size="sm" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Card variant="elevated">
-          <CardHeader>
-            <CardTitle className="text-center">Create New Room</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {error && (
-              <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-lg">
-                {error}
-              </div>
-            )}
-            <p className="text-muted-foreground text-center">
-              Create a new Whist game room. You'll be the admin and can manage
-              the game.
-            </p>
-            <Button
-              fullWidth
-              onClick={handleCreateRoom}
-              disabled={isLoading}
-            >
-              {isLoading ? 'Creating Room...' : 'Create Room'}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="min-h-screen flex flex-col items-center justify-center p-6">
+      <h1 className="text-lg font-semibold uppercase tracking-[0.15em] text-foreground mb-12">
+        Create a New Room
+      </h1>
+
+      {error && (
+        <p className="text-sm text-terracotta text-center mb-6">{error}</p>
+      )}
+
+      <Button
+        size="xl"
+        onClick={handleCreateRoom}
+        disabled={isLoading}
+      >
+        {isLoading ? 'Creating...' : 'Create'}
+      </Button>
     </div>
   );
 }
