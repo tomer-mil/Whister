@@ -1,12 +1,7 @@
-/**
- * Player Card Component
- * Displays individual player information
- */
-
 'use client';
 
-import { Avatar } from '@/components/shared/avatar';
-import { Card } from '@/components/ui/card';
+import { PlayerShape } from '@/components/ui/player-shape';
+import { useStore } from '@/stores';
 import type { RoomPlayer } from '@/types/store';
 
 export interface PlayerCardProps {
@@ -15,56 +10,49 @@ export interface PlayerCardProps {
 }
 
 export function PlayerCard({ player, seatNumber }: PlayerCardProps) {
+  const currentUserId = useStore((state) => state.user?.id);
+  const isCurrentUser = player && player.userId === currentUserId;
+
   if (!player) {
     return (
-      <Card variant="outlined" className="p-4 border-dashed">
-        <div className="text-center space-y-2">
-          <div className="flex justify-center">
-            <div className="w-12 h-12 bg-secondary/50 rounded-full flex items-center justify-center border-2 border-dashed border-border">
-              <span className="text-muted-foreground text-xl">+</span>
-            </div>
-          </div>
-          <p className="text-sm font-medium text-muted-foreground">Seat {seatNumber}</p>
-          <p className="text-xs text-muted-foreground">Waiting...</p>
-        </div>
-      </Card>
+      <div className="flex items-center gap-3 py-3 px-2">
+        <PlayerShape
+          playerIndex={seatNumber - 1}
+          size={20}
+          filled={false}
+          className="text-muted-foreground"
+        />
+        <span className="text-sm font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          Waiting
+        </span>
+      </div>
     );
   }
 
   return (
-    <Card
-      variant="elevated"
-      className={`p-4 transition-opacity ${
-        !player.isConnected ? 'opacity-50' : 'opacity-100'
-      }`}
+    <div
+      className={`flex items-center gap-3 py-3 px-2 transition-opacity ${
+        !player.isConnected ? 'opacity-50' : ''
+      } ${isCurrentUser ? 'bg-card' : ''}`}
     >
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Avatar initials={player.displayName.charAt(0)} size="md" alt={player.displayName} />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <p className="text-sm font-medium text-foreground truncate">
-                  {player.displayName}
-                </p>
-                {player.isAdmin && (
-                  <span className="text-amber-400 text-sm" title="Room Admin">&#9733;</span>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">Seat {seatNumber}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div
-              className={`w-3 h-3 rounded-full ${
-                player.isConnected ? 'bg-success' : 'bg-destructive/60'
-              }`}
-              title={player.isConnected ? 'Connected' : 'Disconnected'}
-            />
-          </div>
-        </div>
-      </div>
-    </Card>
+      <PlayerShape
+        playerIndex={seatNumber - 1}
+        size={20}
+        filled={true}
+      />
+      <span className="text-sm font-medium text-foreground flex-1 truncate">
+        {player.displayName}
+      </span>
+      {player.isAdmin && (
+        <div className="w-2 h-2 bg-ochre" title="Admin" />
+      )}
+      <div
+        className={`w-2 h-2 ${
+          player.isConnected ? 'bg-success' : 'bg-terracotta'
+        }`}
+        title={player.isConnected ? 'Connected' : 'Disconnected'}
+      />
+    </div>
   );
 }
 
