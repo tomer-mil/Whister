@@ -67,9 +67,14 @@ test('last-bidder rule: a bid making the sum 13 is rejected', async ({ browser }
       await driver.bidding(x).setContract([5, 4, 0][g]);
     }
     const last = await firstPageWith(driver.pages, 'bidding-confirm');
-    await driver.bidding(last).setContract(4); // would make sum 13
-    // Rejected: still last player's turn, error shown, no transition to playing.
-    await expect(driver.pages[last].getByTestId('error-toast')).toBeVisible({ timeout: 10_000 });
-    expect(await driver.pages[last].getByTestId('bidding-confirm').isVisible()).toBe(true);
+    // Increment counter to 4 (which would make sum 9+4=13 — forbidden)
+    // Do this manually since setContract would timeout on the disabled confirm button
+    for (let i = 0; i < 4; i++) {
+      await driver.pages[last].getByTestId('bidding-counter-plus').click();
+    }
+    // Client-side validation disables the Confirm button when bid would make sum 13
+    await expect(driver.pages[last].getByTestId('bidding-confirm')).toBeDisabled({ timeout: 5_000 });
+    // Still in contract bidding phase (turn has not advanced)
+    await expect(driver.pages[last].getByTestId('bidding-confirm')).toBeVisible();
   } finally { await driver.close(); }
 });

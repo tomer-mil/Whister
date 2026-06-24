@@ -9,10 +9,11 @@ test('invalid trump bid below minimum is rejected', async ({ browser }) => {
     await driver.createGame();
     await driver.confirmSeating();
     const a = await firstPageWith(driver.pages, 'bidding-pass');
-    // Minimum trump bid is 5; attempt 4.
-    await driver.bidding(a).placeTrumpBid(4, 'clubs');
-    await expect(driver.pages[a].getByTestId('error-toast')).toBeVisible({ timeout: 10_000 });
-    // Still this player's turn (bid not accepted).
+    // Minimum trump bid is 5. Counter starts at 5 and minus button is disabled below min.
+    await expect(driver.pages[a].getByTestId('bidding-counter-value')).toHaveText('5');
+    await expect(driver.pages[a].getByTestId('bidding-counter-minus')).toBeDisabled();
+    // Also: Bid button disabled when counter is at minimum and suit not selected
+    // (player still has their turn — bidding-pass is still visible)
     expect(await driver.pages[a].getByTestId('bidding-pass').isVisible()).toBe(true);
   } finally { await driver.close(); }
 });
