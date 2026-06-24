@@ -238,6 +238,7 @@ export default function SeatingPage({
             return (
               <div
                 key={player.userId}
+                data-testid={`seating-seat-${seatIndex}`}
                 className={`
                   absolute flex flex-col items-center gap-1.5
                   -translate-x-1/2 -translate-y-1/2
@@ -302,6 +303,7 @@ export default function SeatingPage({
             size="xl"
             onClick={handleConfirmSeating}
             disabled={isConfirming}
+            data-testid="seating-confirm"
           >
             {isConfirming ? 'Setting...' : 'Confirm'}
           </Button>

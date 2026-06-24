@@ -185,7 +185,7 @@ export default function GamePage({
 
       {/* Error display */}
       {error && (
-        <p className="text-sm text-terracotta text-center px-4 py-2">{error}</p>
+        <p className="text-sm text-terracotta text-center px-4 py-2" data-testid="error-toast">{error}</p>
       )}
 
       {/* Phase: Trump Bidding */}

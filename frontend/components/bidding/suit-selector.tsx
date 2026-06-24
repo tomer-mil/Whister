@@ -28,6 +28,7 @@ export function SuitSelector({
         return (
           <button
             key={s.suit}
+            data-testid={`bidding-suit-${s.suit === 'no_trump' ? 'notrump' : s.suit}`}
             onClick={() => !disabled && onChange(s.suit)}
             disabled={disabled}
             className={`

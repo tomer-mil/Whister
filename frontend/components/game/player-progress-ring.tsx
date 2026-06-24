@@ -43,6 +43,7 @@ export function PlayerProgressRing({
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.15, ease: 'easeOut' }}
         className="text-lg font-bold"
+        data-testid={`playing-trick-count-${seatIndex}`}
       >
         {tricksWon}
       </motion.span>

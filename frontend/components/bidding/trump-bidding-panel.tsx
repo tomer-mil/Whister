@@ -50,7 +50,7 @@ export function TrumpBiddingPanel({ roomCode: _roomCode, onBidTrump, onPass }: T
 
       {/* Frisch indicator */}
       {frischCount > 0 && (
-        <div className="bg-ochre/10 border-l-4 border-ochre px-4 py-2">
+        <div data-testid="frisch-indicator" className="bg-ochre/10 border-l-4 border-ochre px-4 py-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-[0.15em] text-ochre">
               Frisch

@@ -119,7 +119,9 @@ export function ContractBiddingPanel({
 
           {/* Projected sum */}
           <div className="text-center">
-            <span className={`text-sm ${
+            <span
+              data-testid="bidding-running-sum"
+              className={`text-sm ${
               projectedSum === targetSum && isLastBidder
                 ? 'text-terracotta font-semibold'
                 : 'text-muted-foreground'
@@ -133,6 +135,7 @@ export function ContractBiddingPanel({
             disabled={!isValidBid() || isLoading}
             fullWidth
             size="lg"
+            data-testid="bidding-confirm"
           >
             {isLoading ? 'Confirming...' : 'Confirm'}
           </Button>

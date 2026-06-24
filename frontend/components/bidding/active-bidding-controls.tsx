@@ -119,6 +119,7 @@ export function ActiveBiddingControls({
           disabled={!isValidBid() || isLoading}
           fullWidth
           size="lg"
+          data-testid="bidding-bid"
         >
           {isLoading ? 'Bidding...' : 'Bid'}
         </Button>
@@ -128,6 +129,7 @@ export function ActiveBiddingControls({
           disabled={isLoading}
           fullWidth
           size="lg"
+          data-testid="bidding-pass"
         >
           {isLoading ? 'Passing...' : 'Pass'}
         </Button>

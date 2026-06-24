@@ -35,6 +35,7 @@ export function TrickClaimButton({
   return (
     <div className="flex flex-col items-center gap-3">
       <motion.button
+        data-testid="playing-claim-trick"
         onClick={handleClick}
         disabled={isDisabled}
         whileTap={!isDisabled ? { scale: 0.97 } : {}}

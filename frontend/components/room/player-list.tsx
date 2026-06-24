@@ -21,6 +21,7 @@ export function PlayerList({ players, maxPlayers = 4 }: PlayerListProps) {
           key={slot.seatNumber}
           player={slot.player}
           seatNumber={slot.seatNumber}
+          data-testid={`lobby-player-card-${slot.seatNumber - 1}`}
         />
       ))}
     </div>

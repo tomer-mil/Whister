@@ -167,15 +167,18 @@ export default function ScoreTablePage({
           </thead>
           <tbody>
             {scoreData.rounds.map((round) => (
-              <tr key={round.round_number}>
+              <tr key={round.round_number} data-testid={`scores-row-r${round.round_number}`}>
                 <td className="border-2 border-foreground p-2 text-sm font-bold text-center">
                   {round.round_number}
                 </td>
                 <td className={`border-2 border-foreground p-2 text-center text-lg ${getTrumpColor(round.trump_suit)}`}>
                   {getTrumpSymbol(round.trump_suit)}
                 </td>
-                {round.players.map((player) => (
-                  <td key={player.user_id} className="border-2 border-foreground p-2 text-center">
+                {round.players.map((player) => {
+                  const playerInfo = scoreData.players.find((p) => p.user_id === player.user_id);
+                  const seat = playerInfo?.seat_position ?? 0;
+                  return (
+                  <td key={player.user_id} data-testid={`scores-cell-r${round.round_number}-p${seat}`} className="border-2 border-foreground p-2 text-center">
                     <span className={`text-lg font-semibold ${getScoreColor(player.score)}`}>
                       {player.score > 0 ? `+${player.score}` : player.score}
                     </span>
@@ -183,7 +186,8 @@ export default function ScoreTablePage({
                       {player.tricks_won}/{player.contract_bid}
                     </span>
                   </td>
-                ))}
+                  );
+                })}
               </tr>
             ))}
 
@@ -198,6 +202,7 @@ export default function ScoreTablePage({
                 return (
                   <td
                     key={player.user_id}
+                    data-testid={`scores-total-p${player.seat_position}`}
                     className={`border-2 border-foreground border-t-4 p-3 text-center ${
                       isLeader ? 'bg-ochre/10' : ''
                     }`}
@@ -213,6 +218,15 @@ export default function ScoreTablePage({
         </table>
       </div>
 
+      {/* Winner indicator (for e2e selectors) */}
+      {leadingPlayerId && (
+        <div
+          data-testid="scores-winner"
+          data-seat={scoreData.players.find((p) => p.user_id === leadingPlayerId)?.seat_position ?? ''}
+          className="sr-only"
+        />
+      )}
+
       {/* Action buttons */}
       <div className="px-4 py-6 space-y-3">
         {error && (
@@ -225,6 +239,7 @@ export default function ScoreTablePage({
           loading={isStartingRound}
           fullWidth
           size="lg"
+          data-testid="scores-new-round"
         >
           New Round
         </Button>

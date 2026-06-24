@@ -86,6 +86,7 @@ export default function RoomLobbyPage({
             size="xl"
             disabled={!canStartGame || isStarting}
             onClick={handleStartGame}
+            data-testid="lobby-start-game"
           >
             {isStarting ? 'Starting...' : canStartGame ? 'Start Game' : `Waiting ${players.length}/4`}
           </Button>

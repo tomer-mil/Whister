@@ -23,7 +23,7 @@ export function RoomCodeDisplay({ roomCode }: RoomCodeDisplayProps) {
   };
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-3" data-testid="room-code">
       <span className="text-3xl tracking-[0.2em] font-bold text-foreground">
         {roomCode}
       </span>

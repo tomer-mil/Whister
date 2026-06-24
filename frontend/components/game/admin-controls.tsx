@@ -74,6 +74,7 @@ export function AdminControls({
             size="sm"
             onClick={handleUndo}
             disabled={!selectedPlayerId || isUndoLoading}
+            data-testid="playing-undo-trick"
           >
             {isUndoLoading ? 'Undoing...' : 'Undo'}
           </Button>

@@ -61,7 +61,7 @@ export function GameHeader({
         {/* Trump suit icon */}
         {trumpSuit && (
           <div className="flex-shrink-0 text-right">
-            <span className={`text-2xl ${getSuitColorClass(trumpSuit)}`}>
+            <span className={`text-2xl ${getSuitColorClass(trumpSuit)}`} data-testid="game-trump-suit">
               {getSuitSymbol(trumpSuit)}
             </span>
           </div>

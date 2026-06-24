@@ -40,7 +40,7 @@ export function WaitingForBidder({
           />
         </motion.div>
         <p className="text-sm text-muted-foreground uppercase tracking-[0.1em]">
-          <span className="font-semibold text-foreground">{currentBidderName}</span> bidding...
+          <span className="font-semibold text-foreground" data-testid="bidding-current-turn">{currentBidderName}</span> bidding...
         </p>
       </div>
 

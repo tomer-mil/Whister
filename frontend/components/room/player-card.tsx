@@ -7,15 +7,16 @@ import type { RoomPlayer } from '@/types/store';
 export interface PlayerCardProps {
   player: RoomPlayer | null;
   seatNumber: number;
+  'data-testid'?: string;
 }
 
-export function PlayerCard({ player, seatNumber }: PlayerCardProps) {
+export function PlayerCard({ player, seatNumber, 'data-testid': dataTestId }: PlayerCardProps) {
   const currentUserId = useStore((state) => state.user?.id);
   const isCurrentUser = player && player.userId === currentUserId;
 
   if (!player) {
     return (
-      <div className="flex items-center gap-3 py-3 px-2">
+      <div className="flex items-center gap-3 py-3 px-2" data-testid={dataTestId}>
         <PlayerShape
           playerIndex={seatNumber - 1}
           size={20}
@@ -31,6 +32,7 @@ export function PlayerCard({ player, seatNumber }: PlayerCardProps) {
 
   return (
     <div
+      data-testid={dataTestId}
       className={`flex items-center gap-3 py-3 px-2 transition-opacity ${
         !player.isConnected ? 'opacity-50' : ''
       } ${isCurrentUser ? 'bg-card' : ''}`}

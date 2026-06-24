@@ -110,6 +110,7 @@ export function RoundSummaryModal({
                   fullWidth
                   size="lg"
                   className="bg-[#F5F0EB] text-[#1A1A1A] hover:bg-[#EAE4DD]"
+                  data-testid="scores-continue"
                 >
                   {isLoading ? 'Loading...' : 'Continue'}
                 </Button>
