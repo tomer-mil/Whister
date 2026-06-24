@@ -6,6 +6,7 @@ const ROOT_DIR = path.resolve(__dirname, '../..');
 const STATE_FILE = path.resolve(__dirname, '..', '.services-state.json');
 const API_URL = process.env.API_URL || 'http://localhost:8000';
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+const HEALTH_URL = `${API_URL}/health/ready`;
 
 interface ServicesState {
   startedDocker: boolean;
@@ -16,33 +17,49 @@ interface ServicesState {
 /**
  * CI-friendly bootstrap.
  * - Checks backend health (GET /health/ready).  If unhealthy → docker compose up.
- * - Checks frontend reachability.               If unreachable → npx next dev.
+ *   If docker compose fails but backend is already reachable (port conflict), logs a warning.
+ * - Checks frontend reachability.  If unreachable → npm run build && npm run start (production).
  * - Records what was started so globalTeardown can reverse it.
  */
 export async function ensureServicesRunning(): Promise<void> {
   const state: ServicesState = { startedDocker: false, startedFrontend: false };
 
   // ── Backend ─────────────────────────────────────────────────────
-  if (!(await isReachable(`${API_URL}/health/ready`))) {
+  if (!(await isReachable(HEALTH_URL))) {
     console.log('[e2e] Backend not healthy – running docker compose up -d ...');
-    execSync('docker compose up -d', { cwd: ROOT_DIR, stdio: 'pipe' });
-    state.startedDocker = true;
-    await waitFor(`${API_URL}/health/ready`, 90_000);
+    try {
+      execSync('docker compose up -d', { cwd: ROOT_DIR, stdio: 'pipe' });
+      state.startedDocker = true;
+    } catch (err) {
+      // Port conflict - check if backend is already reachable from env
+      if (!(await isReachable(HEALTH_URL))) {
+        throw new Error(
+          '[e2e] Backend not reachable and docker compose failed (port conflict?). ' +
+          'Stop conflicting services or set API_URL to a running Whister backend.\n' +
+          String(err)
+        );
+      }
+      console.warn('[e2e] docker compose failed but backend is reachable — using existing stack');
+    }
+    await waitFor(HEALTH_URL, 120_000);
     console.log('[e2e] Backend healthy.');
   }
 
   // ── Frontend ────────────────────────────────────────────────────
   if (!(await isReachable(BASE_URL))) {
-    console.log('[e2e] Frontend not reachable – starting next dev ...');
-    const proc = spawn('npx', ['next', 'dev', '--port', '3000'], {
-      cwd: path.resolve(ROOT_DIR, 'frontend'),
+    console.log('[e2e] Frontend not reachable – building & starting (production) ...');
+    const frontendDir = path.resolve(ROOT_DIR, 'frontend');
+    execSync('npm run build', { cwd: frontendDir, stdio: 'inherit' });
+    const port = process.env.FRONTEND_PORT || '3000';
+    const proc = spawn('npm', ['run', 'start', '--', '--port', port], {
+      cwd: frontendDir,
       detached: true,
       stdio: 'ignore',
     });
     proc.unref();
     state.startedFrontend = true;
     state.frontendPid = proc.pid;
-    await waitFor(BASE_URL, 30_000);
+    await waitFor(BASE_URL, 60_000);
     console.log('[e2e] Frontend reachable.');
   }
 
