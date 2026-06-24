@@ -5,7 +5,8 @@
     "setup": "npx playwright install chromium",
     "test": "npx playwright test",
     "test:headed": "npx playwright test --headed",
-    "test:ui": "npx playwright test --ui"
+    "test:ui": "npx playwright test --ui",
+    "report": "npx playwright show-report"
   },
   "devDependencies": {
     "@playwright/test": "^1.41.0",
