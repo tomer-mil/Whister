@@ -5,8 +5,8 @@ import { ensureServicesRunning } from './helpers/services';
 import { seedAllUsers } from './helpers/seed';
 import { players } from './config/players';
 
-const API_URL = process.env.API_URL || 'http://localhost:8000/api';
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+const API_URL = process.env.API_URL || 'http://localhost:8001/api';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
 
 /**
  * Global setup – runs once before the entire suite.
