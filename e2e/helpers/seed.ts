@@ -1,6 +1,6 @@
 import { players, PlayerConfig } from '../config/players';
 
-const API_URL = process.env.API_URL || 'http://localhost:8000/api';
+const API_URL = process.env.API_URL || 'http://localhost:8001/api';
 
 /** Register a player if they don't already exist. Idempotent. */
 export async function seedUser(player: PlayerConfig): Promise<void> {
