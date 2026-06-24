@@ -1,7 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 
-const API_URL = process.env.API_URL || 'http://localhost:8000/api';
-const WS_URL = process.env.WS_URL || 'http://localhost:8000';
+const API_URL = process.env.API_URL || 'http://localhost:8001/api';
+const WS_URL = process.env.WS_URL || 'http://localhost:8001';
 
 export interface ScoreTable {
   rounds: { round: number; suit: string; scores: number[] }[];

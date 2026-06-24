@@ -17,8 +17,8 @@ import type { TypedSocket, RoomJoinedPayload } from '@/types/socket-events';
 
 const WS_URL =
   typeof window !== 'undefined'
-    ? process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:8000'
-    : 'http://localhost:8000';
+    ? process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:8001'
+    : 'http://localhost:8001';
 
 const WS_PATH = '/ws/socket.io';
 

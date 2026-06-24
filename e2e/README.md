@@ -12,21 +12,14 @@ npm test
 `globalSetup` brings up docker (postgres/redis/backend), builds + serves the frontend, and seeds
 4 throwaway `@whister.test` users. `globalTeardown` stops only what it started.
 
-**Port conflicts:** If other services are using ports 5432, 8000, or 3000 (e.g., a Cookoo or
-open-webui process), the auto-bootstrap will fail. Either stop conflicting services first, or
-point the suite at an already-running Whister stack via env vars:
-```bash
-API_URL=http://localhost:8001/api WS_URL=http://localhost:8001 BASE_URL=http://localhost:3001 npm test
-```
-
 ## Env vars
 | Variable | Default | Purpose |
 |---|---|---|
-| `BASE_URL` | `http://localhost:3000` | Frontend URL |
-| `API_URL` | `http://localhost:8000/api` | Backend REST base |
-| `WS_URL` | `http://localhost:8000` | Backend WebSocket base |
+| `BASE_URL` | `http://localhost:3001` | Frontend URL |
+| `API_URL` | `http://localhost:8001/api` | Backend REST base |
+| `WS_URL` | `http://localhost:8001` | Backend WebSocket base |
 | `HEALTH_PATH` | `/health/ready` | Backend health endpoint |
-| `FRONTEND_PORT` | `3000` | Port for the auto-started frontend |
+| `FRONTEND_PORT` | `3001` | Port for the auto-started frontend |
 
 ## Test suites
 | File | What it tests | Expected result |

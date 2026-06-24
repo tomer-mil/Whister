@@ -4,8 +4,8 @@ import fs from 'fs';
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
 const STATE_FILE = path.resolve(__dirname, '..', '.services-state.json');
-const API_URL = process.env.API_URL || 'http://localhost:8000';
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+const API_URL = process.env.API_URL || 'http://localhost:8001';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
 const HEALTH_URL = `${API_URL}/health/ready`;
 
 interface ServicesState {
@@ -50,7 +50,7 @@ export async function ensureServicesRunning(): Promise<void> {
     console.log('[e2e] Frontend not reachable – building & starting (production) ...');
     const frontendDir = path.resolve(ROOT_DIR, 'frontend');
     execSync('npm run build', { cwd: frontendDir, stdio: 'inherit' });
-    const port = process.env.FRONTEND_PORT || '3000';
+    const port = process.env.FRONTEND_PORT || '3001';
     const proc = spawn('npm', ['run', 'start', '--', '--port', port], {
       cwd: frontendDir,
       detached: true,
