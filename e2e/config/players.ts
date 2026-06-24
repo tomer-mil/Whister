@@ -14,36 +14,13 @@ export interface PlayerConfig {
 
 const AUTH_DIR = path.resolve(__dirname, '..', '.auth');
 
-export const players: PlayerConfig[] = [
-  {
-    index: 0,
-    email: 'test@example.com',
-    password: 'TestPassword123',
-    storageStatePath: path.resolve(AUTH_DIR, 'player0-storage.json'),
-    tokenPath: path.resolve(AUTH_DIR, 'player0-token.json'),
-  },
-  {
-    index: 1,
-    email: 'tomer.mildworth+2@gmail.com',
-    password: 'Tt100396',
-    storageStatePath: path.resolve(AUTH_DIR, 'player1-storage.json'),
-    tokenPath: path.resolve(AUTH_DIR, 'player1-token.json'),
-  },
-  {
-    index: 2,
-    email: 'tomer.mildworth+5@gmail.com',
-    password: 'Tt100396',
-    storageStatePath: path.resolve(AUTH_DIR, 'player2-storage.json'),
-    tokenPath: path.resolve(AUTH_DIR, 'player2-token.json'),
-  },
-  {
-    index: 3,
-    email: 'tomer.mildworth+6@gmail.com',
-    password: 'Tt100396',
-    storageStatePath: path.resolve(AUTH_DIR, 'player3-storage.json'),
-    tokenPath: path.resolve(AUTH_DIR, 'player3-token.json'),
-  },
-];
+export const players: PlayerConfig[] = [0, 1, 2, 3].map((index) => ({
+  index,
+  email: `e2e-p${index}@whister.test`,
+  password: 'E2eTestPass123',
+  storageStatePath: path.resolve(AUTH_DIR, `player${index}-storage.json`),
+  tokenPath: path.resolve(AUTH_DIR, `player${index}-token.json`),
+}));
 
 /** Read a player's saved access token from disk (written by globalSetup). */
 export function loadToken(player: PlayerConfig): string {
