@@ -11,6 +11,7 @@ test('multi-round: scores accumulate across two rounds', async ({ browser }) => 
 
     await driver.playRound({ trump: 'clubs', trumpWinner: 0, contracts: [5, 3, 3, 3], tricks: [5, 3, 3, 2] });
     const afterR1 = await driver.backendScores(gameId);
+    expect(afterR1.rounds.length).toBeGreaterThanOrEqual(1);
 
     await driver.nextRound();
     await driver.playRound({ trump: 'diamonds', trumpWinner: 0, contracts: [5, 3, 3, 3], tricks: [5, 3, 3, 2] });
