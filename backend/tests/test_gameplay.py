@@ -93,11 +93,11 @@ class TestScoringScenarios:
             for c, t in zip(contracts, tricks_won, strict=False)
         ]
 
-        # Expected: [50, 35, 35, 19] → Total: 139
+        # Expected: [50, 35, 35, 14] → Total: 134
         assert scores[0] == 50  # Made zero in under
         assert scores[1] == 35  # Made 5
         assert scores[2] == 35  # Made 5
-        assert scores[3] == 19  # Made 2
+        assert scores[3] == 14  # Made 2 (2²+10=14)
 
     def test_round_with_zero_bid_over(self, scoring_service: ScoringService) -> None:
         """Test round with zero bid in over game."""

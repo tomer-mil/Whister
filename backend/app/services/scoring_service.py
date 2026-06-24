@@ -132,5 +132,8 @@ class ScoringService:
             # Made contract
             return (contract_bid * contract_bid) + 10
         # Failed contract
+        if game_type == GameType.UNDER and tricks_won > contract_bid:
+            # Under-game: taking more tricks than bid harms the team
+            return tricks_won * -10
         deviation = abs(tricks_won - contract_bid)
         return deviation * -10
