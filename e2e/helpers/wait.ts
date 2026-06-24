@@ -1,26 +1,30 @@
-import { Page } from '@playwright/test';
+import { Page, expect } from '@playwright/test';
 
-/**
- * Wait for window.location.pathname to match a pattern, then let
- * any in-flight network requests settle.
- *
- * WHY: Next.js router.push / router.replace changes the URL via the
- * History API — no hard navigation, no 'load' event.  Playwright's
- * page.waitForURL() defaults to waitUntil:'load' and hangs forever
- * on these transitions.  This helper polls the live pathname instead.
- *
- * @param pattern  RegExp source string, e.g. "^/room/[A-Za-z0-9]+$".
- *                 Serialised to the browser and compiled there.
- */
-export async function waitForPathname(
-  page: Page,
-  pattern: string,
-  timeout = 15_000
-): Promise<void> {
-  await page.waitForFunction(
-    (pat: string) => new RegExp(pat).test(window.location.pathname),
-    pattern,
-    { timeout }
-  );
-  await page.waitForLoadState('networkidle');
+export async function waitForPathname(page: Page, pattern: string, timeoutMs = 15_000) {
+  await expect.poll(() => page.url(), { timeout: timeoutMs }).toMatch(new RegExp(pattern));
+}
+
+export async function waitForTestId(page: Page, testId: string, timeoutMs = 15_000) {
+  await expect(page.getByTestId(testId)).toBeVisible({ timeout: timeoutMs });
+}
+
+export async function waitForText(page: Page, testId: string, expected: string, timeoutMs = 15_000) {
+  await expect(page.getByTestId(testId)).toHaveText(expected, { timeout: timeoutMs });
+}
+
+/** Resolve to the index of the first page where `testId` is visible. Throws on timeout. */
+export async function firstPageWith(pages: Page[], testId: string, timeoutMs = 15_000): Promise<number> {
+  let found = -1;
+  await expect
+    .poll(
+      async () => {
+        for (let i = 0; i < pages.length; i++) {
+          if (await pages[i].getByTestId(testId).isVisible()) { found = i; return true; }
+        }
+        return false;
+      },
+      { timeout: timeoutMs },
+    )
+    .toBe(true);
+  return found;
 }
