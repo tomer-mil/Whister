@@ -2,7 +2,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import PostgresDsn, RedisDsn, field_validator
+from pydantic import PostgresDsn, RedisDsn, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -56,6 +56,14 @@ class Settings(BaseSettings):
     room_ttl_hours: int = 24
     room_max_reconnect_seconds: int = 60
 
+    _INSECURE_JWT_DEFAULTS: frozenset[str] = frozenset({
+        "your-super-secret-key-change-in-production",
+        "secret",
+        "changeme",
+        "development",
+    })
+    _JWT_MIN_LENGTH: int = 32
+
     @field_validator("cors_origins", mode="before")  # type: ignore
     @classmethod
     def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
@@ -63,6 +71,21 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",")]
         return v
+
+    @model_validator(mode="after")  # type: ignore
+    def reject_insecure_jwt_in_production(self) -> "Settings":
+        """Fail startup in production if the JWT secret is the well-known default."""
+        if self.environment == "production":
+            if (
+                self.jwt_secret_key in self._INSECURE_JWT_DEFAULTS
+                or len(self.jwt_secret_key) < self._JWT_MIN_LENGTH
+            ):
+                raise ValueError(
+                    "ENVIRONMENT=production requires a strong JWT_SECRET_KEY "
+                    f"(min {self._JWT_MIN_LENGTH} chars, not the default value). "
+                    "Set the JWT_SECRET_KEY environment variable before deploying."
+                )
+        return self
 
 
 @lru_cache
