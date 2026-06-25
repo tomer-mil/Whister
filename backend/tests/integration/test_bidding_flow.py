@@ -90,7 +90,7 @@ class TestBiddingFlow:
             headers={"Authorization": f"Bearer {admin_token}"},
         )
         assert start_response.status_code == 200
-        assert start_response.json()["status"] == "bidding_trump"
+        assert start_response.json()["status"] == "seating"
 
         # Get room state to verify game started
         room_response = await client.get(
@@ -99,7 +99,7 @@ class TestBiddingFlow:
         )
         assert room_response.status_code == 200
         room_data = room_response.json()
-        assert room_data["status"] == "bidding_trump"
+        assert room_data["status"] == "seating"
         assert len(room_data["players"]) == 4
 
     async def test_frisch_scenario_all_players_pass(self, client: AsyncClient):
@@ -174,7 +174,7 @@ class TestBiddingFlow:
             headers={"Authorization": f"Bearer {admin_token}"},
         )
         assert room_response.status_code == 200
-        assert room_response.json()["status"] == "bidding_trump"
+        assert room_response.json()["status"] == "seating"
 
     async def test_complex_auction_multiple_rebids(self, client: AsyncClient):
         """
@@ -253,7 +253,7 @@ class TestBiddingFlow:
             headers={"Authorization": f"Bearer {admin_token}"},
         )
         assert room_response.status_code == 200
-        assert room_response.json()["status"] == "bidding_trump"
+        assert room_response.json()["status"] == "seating"
 
 
 @pytest.mark.asyncio

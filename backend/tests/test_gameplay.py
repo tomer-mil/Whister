@@ -50,12 +50,13 @@ class TestScoringScenarios:
             for c, t in zip(contracts, tricks_won, strict=False)
         ]
 
-        # Expected: [19, -10, 19, -50] → Total: -22
+        # Expected: [19, -10, 19, -20] → Total: 8
+        # Under-game overtrick: -10 × |5-3| = -20 (canonical rule, same as all non-zero failures)
         assert scores[0] == 19  # Made 3
         assert scores[1] == -10  # Failed 3, won 2
         assert scores[2] == 19  # Made 3
-        assert scores[3] == -50  # Won 5, bid 3
-        assert sum(scores) == -22
+        assert scores[3] == -20  # Won 5, bid 3: -10 × |5-3|
+        assert sum(scores) == 8
 
     def test_full_round_over_game(self, scoring_service: ScoringService) -> None:
         """Test scoring for a complete over game round."""

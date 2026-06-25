@@ -349,10 +349,10 @@ async def test_start_game_success(client: AsyncClient) -> None:
     assert response.status_code == 200
     data = response.json()
     assert "game_id" in data
-    assert data["status"] == "bidding_trump"
-    assert data["current_round"] == 1
+    assert data["status"] == "seating"
+    assert data["current_round"] == 0
     assert "first_bidder_id" in data
-    assert data["message"] == "Game started"
+    assert data["message"] == "Game started - select seating"
 
 
 @pytest.mark.asyncio  # type: ignore
