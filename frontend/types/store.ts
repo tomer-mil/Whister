@@ -179,6 +179,7 @@ export interface BiddingActions {
   setFrisch: (frischCount: number, minimumBid: number) => void;
   setContracts: (contracts: ContractBid[]) => void;
   addContract: (contract: ContractBid) => void;
+  setContractSum: (sum: number) => void;
   setContractsComplete: (gameType: GameType) => void;
   setCurrentTurn: (playerId: string, isLastBidder?: boolean) => void;
   resetBidding: () => void;

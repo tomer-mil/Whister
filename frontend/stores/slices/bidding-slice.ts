@@ -164,6 +164,8 @@ export const createBiddingSlice: any = (set: any, get: any) => ({
     }));
   },
 
+  setContractSum: (sum: number) => set({ contractSum: sum }),
+
   setContractsComplete: (gameType: 'over' | 'under') => {
     set({
       gameType,

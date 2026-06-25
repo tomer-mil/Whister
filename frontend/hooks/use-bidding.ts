@@ -35,6 +35,7 @@ export function useBidding(options: UseBiddingOptions) {
   const setFrisch = useStore((state) => state.setFrisch);
   const setContracts = useStore((state) => state.setContracts);
   const addContract = useStore((state) => state.addContract);
+  const setContractSum = useStore((state) => state.setContractSum);
   const setContractsComplete = useStore((state) => state.setContractsComplete);
   const setPhase = useStore((state) => state.setPhase);
 
@@ -76,6 +77,9 @@ export function useBidding(options: UseBiddingOptions) {
       const myUserId = useStore.getState().user?.id;
       if (myUserId) {
         setCurrentTurn(myUserId, payload.is_last_bidder ?? false);
+        if (payload.current_contract_sum != null) {
+          setContractSum(payload.current_contract_sum);
+        }
         console.log('[useBidding] Received bid:your_turn, setting isMyTurn=true');
       }
     });
@@ -160,7 +164,7 @@ export function useBidding(options: UseBiddingOptions) {
       socket.off('bid:frisch_started');
       socket.off('bid:contracts_set');
     };
-  }, [socket, addTrumpBid, addPass, setCurrentTurn, setTrumpResult, setFrisch, setContracts, addContract, setContractsComplete, setPhase]);
+  }, [socket, addTrumpBid, addPass, setCurrentTurn, setContractSum, setTrumpResult, setFrisch, setContracts, addContract, setContractsComplete, setPhase]);
 
   return {
     socket,
