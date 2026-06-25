@@ -178,8 +178,8 @@ export default function ScoreTablePage({
                   const playerInfo = scoreData.players.find((p) => p.user_id === player.user_id);
                   const seat = playerInfo?.seat_position ?? 0;
                   return (
-                  <td key={player.user_id} data-testid={`scores-cell-r${round.round_number}-p${seat}`} className="border-2 border-foreground p-2 text-center">
-                    <span className={`text-lg font-semibold ${getScoreColor(player.score)}`}>
+                  <td key={player.user_id} className="border-2 border-foreground p-2 text-center">
+                    <span data-testid={`scores-cell-r${round.round_number}-p${seat}`} className={`text-lg font-semibold ${getScoreColor(player.score)}`}>
                       {player.score > 0 ? `+${player.score}` : player.score}
                     </span>
                     <span className="block text-[10px] text-muted-foreground">
