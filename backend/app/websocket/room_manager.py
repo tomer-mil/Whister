@@ -9,7 +9,11 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from redis.asyncio import Redis  # type: ignore
 
-from app.core.exceptions import NotFoundError
+from uuid import UUID
+
+from sqlalchemy import select
+
+from app.core.exceptions import AuthorizationError, NotFoundError
 from app.schemas.errors import ErrorCode
 from app.websocket.schemas import (
     PlayerInfo,
@@ -246,6 +250,13 @@ class RoomManager:
             # Now check if room is full (only for truly new players)
             if len(players) >= 4:
                 raise NotFoundError("Room is full", ErrorCode.ROOM_FULL)
+
+            # Authorization: verify this user has a GamePlayer row for this game.
+            # The REST join path creates the GamePlayer row; the WS path must not
+            # bypass it — otherwise any authenticated user who knows the room code
+            # can occupy a seat in a stranger's game.
+            game_id_str = room_data["game_id"]
+            await self._assert_game_membership(game_id_str, user_id)
 
             # New join - find available seat
             occupied_seats = {p.seat_position for p in players}
@@ -587,6 +598,35 @@ class RoomManager:
         """
         socket_id = await self.redis.get(f"ws:user:{user_id}")
         return socket_id
+
+    async def _assert_game_membership(self, game_id: str, user_id: str) -> None:
+        """Verify that user_id has a GamePlayer row for game_id.
+
+        Raises AuthenticationError if they are not a member.  This guards the
+        WS room:join path against users who know a room code but were never
+        admitted via the REST join endpoint.
+        """
+        from app.models.game import GamePlayer
+
+        async with self.db_session_factory() as session:
+            result = await session.execute(
+                select(GamePlayer).where(
+                    GamePlayer.game_id == UUID(game_id),
+                    GamePlayer.user_id == UUID(user_id),
+                )
+            )
+            row = result.scalar_one_or_none()
+
+        if row is None:
+            logger.warning(
+                "WS join rejected: user %s is not a member of game %s",
+                user_id,
+                game_id,
+            )
+            raise AuthorizationError(
+                "Not a member of this game",
+                ErrorCode.PLAYER_NOT_IN_ROOM,
+            )
 
     async def get_room_round_state(self, room_code: str) -> dict[str, str]:
         """Get the round state from Redis.
