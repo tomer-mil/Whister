@@ -59,11 +59,6 @@ export function isValidContractBid(
     return false;
   }
 
-  // Sum cannot exceed target for non-last bidders
-  if (!isLastBidder && newSum > targetSum) {
-    return false;
-  }
-
   return true;
 }
 
@@ -107,10 +102,6 @@ export function getContractBidErrorMessage(
 
   if (isLastBidder && newSum === targetSum) {
     return `Cannot bid ${amount} - contracts would sum to ${targetSum}`;
-  }
-
-  if (!isLastBidder && newSum > targetSum) {
-    return `Cannot bid ${amount} - contracts would exceed ${targetSum}`;
   }
 
   return 'Invalid contract bid';
