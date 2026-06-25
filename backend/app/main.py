@@ -105,7 +105,7 @@ def create_app() -> FastAPI:
         Returns:
             Status and version information
         """
-        return {"status": "ok", "version": settings.app_version}
+        return {"service": "whister", "status": "ok", "version": settings.app_version}
 
     # Detailed readiness check endpoint
     @app.get("/health/ready", tags=["Health"], summary="Readiness check with connectivity")  # type: ignore
@@ -118,7 +118,7 @@ def create_app() -> FastAPI:
             Status with service connectivity details
         """
         services_ok = True
-        details: dict[str, Any] = {"version": settings.app_version}
+        details: dict[str, Any] = {"service": "whister", "version": settings.app_version}
 
         # Check database
         try:
