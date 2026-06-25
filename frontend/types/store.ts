@@ -162,6 +162,7 @@ export interface BiddingState {
 
   // UI state
   isMyTurn: boolean;
+  isLastBidder: boolean;
   isSubmitting: boolean;
 }
 
@@ -179,7 +180,7 @@ export interface BiddingActions {
   setContracts: (contracts: ContractBid[]) => void;
   addContract: (contract: ContractBid) => void;
   setContractsComplete: (gameType: GameType) => void;
-  setCurrentTurn: (playerId: string) => void;
+  setCurrentTurn: (playerId: string, isLastBidder?: boolean) => void;
   resetBidding: () => void;
 }
 

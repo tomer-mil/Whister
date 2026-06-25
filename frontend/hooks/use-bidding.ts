@@ -71,11 +71,11 @@ export function useBidding(options: UseBiddingOptions) {
     if (!socket) return;
 
     // Your turn notification
-    socket.on('bid:your_turn', (_payload: YourTurnPayload) => {
+    socket.on('bid:your_turn', (payload: YourTurnPayload) => {
       // This event is sent only to the player whose turn it is
       const myUserId = useStore.getState().user?.id;
       if (myUserId) {
-        setCurrentTurn(myUserId);
+        setCurrentTurn(myUserId, payload.is_last_bidder ?? false);
         console.log('[useBidding] Received bid:your_turn, setting isMyTurn=true');
       }
     });

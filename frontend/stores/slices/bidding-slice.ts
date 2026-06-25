@@ -32,6 +32,7 @@ const initialBiddingState: BiddingState = {
 
   // UI state
   isMyTurn: false,
+  isLastBidder: false,
   isSubmitting: false,
 };
 
@@ -170,11 +171,13 @@ export const createBiddingSlice: any = (set: any, get: any) => ({
     });
   },
 
-  setCurrentTurn: (playerId: string) => {
+  setCurrentTurn: (playerId: string, isLastBidder?: boolean) => {
     const myId = get().user?.id;
+    const isMyTurn = playerId === myId;
     set({
       currentTurnPlayerId: playerId,
-      isMyTurn: playerId === myId,
+      isMyTurn,
+      isLastBidder: isMyTurn ? (isLastBidder ?? false) : false,
     });
   },
 

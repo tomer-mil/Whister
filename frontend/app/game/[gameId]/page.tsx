@@ -38,6 +38,7 @@ export default function GamePage({
     contractSum,
     gameType,
     isMyTurn,
+    isLastBidder,
     isSubmitting,
     currentRound,
     totalTricksPlayed,
@@ -56,6 +57,7 @@ export default function GamePage({
     contractSum: state.contractSum,
     gameType: state.gameType,
     isMyTurn: state.isMyTurn,
+    isLastBidder: state.isLastBidder,
     isSubmitting: state.isSubmitting,
     currentRound: state.currentRound ?? 1,
     totalTricksPlayed: state.totalTricksPlayed ?? 0,
@@ -122,8 +124,6 @@ export default function GamePage({
       };
     });
   }, [players, contracts, playerTricks]);
-
-  const isLastBidder = contracts.length === 3 && isMyTurn;
 
   const handleContractBid = useCallback(async (amount: number) => {
     setError(null);
