@@ -63,8 +63,19 @@ export default function GamePage({
     roundResults: state.roundResults,
   }));
 
-  const { bidTrump, passRound, bidContract } = useBidding({ roomCode: roomCode ?? '' });
+  const { bidTrump, passRound, bidContract, socket: biddingSocket } = useBidding({ roomCode: roomCode ?? '' });
   const { claimTrick, undoTrick } = useGame({ roomCode: roomCode ?? '' });
+
+  // When this page mounts with an active socket, pull current game state from the server.
+  // This handles the seating→bidding SPA transition where GameLayout doesn't re-emit room:join.
+  // useBidding's bid:your_turn listener is registered before this effect runs (declared earlier).
+  React.useEffect(() => {
+    if (!biddingSocket || !roomCode) return;
+    biddingSocket.emit('room:join', {
+      room_code: roomCode,
+      display_name: user?.displayName || 'Player',
+    });
+  }, [biddingSocket, roomCode, user?.displayName]);
 
   const trumpWinnerName = players.find(p => p.userId === trumpWinnerId)?.displayName ?? 'Unknown';
 
