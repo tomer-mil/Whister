@@ -690,7 +690,7 @@ class RoomService:
         if current_phase != RoundPhase.COMPLETE.value:
             raise ValidationError(
                 "Current round is not complete",
-                ErrorCode.INVALID_GAME_STATE,
+                ErrorCode.INVALID_GAME_PHASE,
             )
 
         # Get game and update round number

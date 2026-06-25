@@ -48,6 +48,16 @@ class TestFailedContractScoring:
         score = scoring_service.calculate_round_score(3, 5, GameType.OVER)
         assert score == -20
 
+    def test_failed_contract_bid_3_won_5_under(self, scoring_service: ScoringService) -> None:
+        """Under-game overtrick: bid 3, won 5 → -10 x |5-3| = -20 (not -50)."""
+        score = scoring_service.calculate_round_score(3, 5, GameType.UNDER)
+        assert score == -20
+
+    def test_failed_contract_bid_5_won_8_under(self, scoring_service: ScoringService) -> None:
+        """Under-game overtrick: bid 5, won 8 → -10 x |8-5| = -30."""
+        score = scoring_service.calculate_round_score(5, 8, GameType.UNDER)
+        assert score == -30
+
     def test_failed_contract_by_1(self, scoring_service: ScoringService) -> None:
         """Test bid 5, won 4 → -10 x 1 = -10."""
         score = scoring_service.calculate_round_score(5, 4, GameType.UNDER)
