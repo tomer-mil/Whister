@@ -16,7 +16,7 @@ const AUTH_DIR = path.resolve(__dirname, '..', '.auth');
 
 export const players: PlayerConfig[] = [0, 1, 2, 3].map((index) => ({
   index,
-  email: `e2e-p${index}@whister.test`,
+  email: `e2e-p${index}@example.com`,
   password: 'E2eTestPass123',
   storageStatePath: path.resolve(AUTH_DIR, `player${index}-storage.json`),
   tokenPath: path.resolve(AUTH_DIR, `player${index}-token.json`),
