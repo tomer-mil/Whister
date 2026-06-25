@@ -30,6 +30,7 @@ def upgrade() -> None:
         "round_complete",
         "finished",
         name="game_status",
+        create_type=False,
     )
     game_status.create(op.get_bind())
 
@@ -40,18 +41,19 @@ def upgrade() -> None:
         "playing",
         "complete",
         name="round_phase",
+        create_type=False,
     )
     round_phase.create(op.get_bind())
 
     trump_suit = postgresql.ENUM(
-        "clubs", "diamonds", "hearts", "spades", "no_trump", name="trump_suit"
+        "clubs", "diamonds", "hearts", "spades", "no_trump", name="trump_suit", create_type=False
     )
     trump_suit.create(op.get_bind())
 
-    game_type = postgresql.ENUM("over", "under", name="game_type")
+    game_type = postgresql.ENUM("over", "under", name="game_type", create_type=False)
     game_type.create(op.get_bind())
 
-    group_role = postgresql.ENUM("owner", "member", name="group_role")
+    group_role = postgresql.ENUM("owner", "member", name="group_role", create_type=False)
     group_role.create(op.get_bind())
 
     # Create users table
