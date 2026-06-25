@@ -55,6 +55,7 @@ export class GameDriver {
     await this.runTrumpAuction(spec.trump, spec.trumpWinner);
     await this.runContractBidding(spec.contracts);
     await this.claimAllTricks(spec.tricks);
+    await this.scores(0).continueSummary(); // dismiss round-summary modal → navigates to scores page
     await this.scores(0).waitLoaded();
   }
 
