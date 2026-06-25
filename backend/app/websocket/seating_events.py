@@ -188,6 +188,23 @@ def register_seating_handlers(
                 room=f"room:{room_code}",
             )
 
+            # Notify the first bidder it's their turn to bid trump
+            try:
+                from app.websocket.game_events import emit_your_turn
+                await emit_your_turn(
+                    sio,
+                    room_manager,
+                    str(result.first_bidder_id),
+                    phase="trump_bidding",
+                    minimum_bid=5,
+                    current_highest_bid=None,
+                    current_highest_suit=None,
+                    is_last_bidder=False,
+                )
+                logger.info("Emitted bid:your_turn to first bidder %s", result.first_bidder_id)
+            except Exception as e:
+                logger.exception("Error emitting bid:your_turn after seating: %s", e)
+
             return {"success": True}
 
         except Exception as e:
