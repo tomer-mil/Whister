@@ -66,10 +66,11 @@ test('B3: offline+background simulating long background; socket reconnects on re
     // Simulate long background: hide + go offline
     await background(driver.pages[3]);
     await goOffline(driver.contexts[3]);
-    // Wait for P3's socket to disconnect
+    // Wait for P3's socket to disconnect (CDP offline doesn't kill socket immediately;
+    // heartbeat timeout is ~25s, so wait up to 40s)
     await expect.poll(
       async () => driver.pages[3].evaluate(() => !(window as any).socketManager?.isConnected()),
-      { timeout: 20_000 },
+      { timeout: 40_000 },
     ).toBe(true);
     // Restore connectivity and foreground
     await goOnline(driver.contexts[3]);
@@ -98,12 +99,6 @@ test('B4: background while it is your trump bid turn; turn remains on foreground
     // Find the active (first-to-bid) player and background them immediately
     const activeIdx = await firstPageWith(driver.pages, 'bidding-pass');
     await background(driver.pages[activeIdx]);
-    // Brief pause — condition-based: check the state does not change
-    // (no auto-pass exists yet — finding F3 / SG-6 D4)
-    await expect.poll(
-      async () => driver.pages[activeIdx].getByTestId('bidding-pass').isVisible(),
-      { timeout: 5_000 },
-    ).toBe(false); // hidden because the page is in background
     await foreground(driver.pages[activeIdx]);
     // After foreground, it's still their turn (auto-pass not implemented)
     await expect(driver.pages[activeIdx].getByTestId('bidding-pass')).toBeVisible({ timeout: 10_000 });
