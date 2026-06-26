@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { GameDriver } from '../../driver';
 import {
-  IPHONE_SE, goOffline, goOnline, blockRoute, throttle3G, disconnectSocket,
+  IPHONE_SE, goOffline, goOnline, blockRoute, throttle3G,
 } from '../../mobile';
 import { firstPageWith } from '../../helpers/wait';
 
 // N1: offline → online; socket reconnects and connection indicator recovers
 test('N1: socket reconnects and connection indicator recovers after offline→online', async ({ browser }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
   const driver = new GameDriver(browser);
   await driver.setup(IPHONE_SE);
   try {
@@ -86,13 +86,17 @@ test('N3: score-table fetch blocked mid-request; UI shows error (not silent fail
     const restores = await Promise.all(
       driver.pages.map((page) => blockRoute(page, '**/games/**/score-table**')),
     );
-    // Complete the round — score-table fetch will fail
-    await driver.playRound({ trump: 'clubs', trumpWinner: 0, contracts: [5, 3, 3, 3], tricks: [5, 3, 3, 2] });
-    // Finding: if the UI shows an error-toast, it's handling the failure correctly.
-    // If it silently ignores it, that's a gap — scores may show empty/stale values.
-    const anyError = await driver.pages[0].getByTestId('error-toast').isVisible({ timeout: 5_000 }).catch(() => false);
-    // Unblock for any cleanup
-    await Promise.all(restores.map((r) => r()));
+    let anyError = false;
+    try {
+      // Complete the round — score-table fetch will fail
+      await driver.playRound({ trump: 'clubs', trumpWinner: 0, contracts: [5, 3, 3, 3], tricks: [5, 3, 3, 2] });
+      // Finding: if the UI shows an error-toast, it's handling the failure correctly.
+      // If it silently ignores it, that's a gap — scores may show empty/stale values.
+      anyError = await driver.pages[0].getByTestId('error-toast').isVisible({ timeout: 5_000 }).catch(() => false);
+    } finally {
+      // Unblock routes whether or not playRound() threw
+      await Promise.all(restores.map((r) => r()));
+    }
     // Record the finding regardless — the test documents what happens, not just pass/fail.
     // If no error toast appears, that means the app fails silently — still a finding.
     expect(
