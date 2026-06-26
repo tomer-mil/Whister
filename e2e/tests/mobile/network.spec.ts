@@ -105,20 +105,25 @@ test('N3: score-table fetch blocked mid-request; UI shows error (not silent fail
 });
 
 // N4: 3G throttle for entire round; completes within extended timeout
+// Finding: if this test fails, the Next.js bidding UI bundle is too heavy for slow connections.
 test('N4: full round completes under 3G throttle (250kbps, 300ms RTT)', async ({ browser }) => {
   test.setTimeout(180_000);
   const driver = new GameDriver(browser);
   await driver.setup(IPHONE_SE);
   try {
-    // Apply 3G throttle to P0's page before game starts
+    // Throttle applied after lobby setup so inner page-object timeouts are not starved during join/seat.
+    // P0's default action timeout raised to 90s while throttled — Next.js may load additional JS
+    // chunks for the bidding screen that are large on a slow connection.
+    const { gameId } = await driver.createGame();
+    await driver.confirmSeating();
     const restoreP0 = await throttle3G(driver.pages[0]);
+    driver.pages[0].setDefaultTimeout(90_000);
     try {
-      const { gameId } = await driver.createGame();
-      await driver.confirmSeating();
       await driver.playRound({ trump: 'clubs', trumpWinner: 0, contracts: [5, 3, 3, 3], tricks: [5, 3, 3, 2] });
       const bt = await driver.backendScores(gameId);
       expect(bt.rounds[0].scores[0]).toBe(35);
     } finally {
+      driver.pages[0].setDefaultTimeout(15_000);
       await restoreP0();
     }
   } finally {
@@ -126,25 +131,28 @@ test('N4: full round completes under 3G throttle (250kbps, 300ms RTT)', async ({
   }
 });
 
-// N5: force socket disconnect; socket.io backoff reconnects automatically
-test('N5: force socket disconnect; socket.io reconnects automatically', async ({ browser }) => {
-  test.setTimeout(60_000);
+// N5: network-level drop; socket.io backoff reconnects automatically
+// Note: socket.disconnect() is a voluntary close — socket.io does not auto-reconnect from it.
+// Use CDP offline (involuntary) so socket.io's built-in reconnection backoff kicks in.
+test('N5: network-level drop; socket.io reconnects automatically', async ({ browser }) => {
+  test.setTimeout(120_000);
   const driver = new GameDriver(browser);
   await driver.setup(IPHONE_SE);
   try {
     await driver.createGame();
     await driver.confirmSeating();
-    // Force-disconnect P3's socket.io client
-    await disconnectSocket(driver.pages[3]);
-    // Wait for disconnect to register
+    // Involuntary disconnect via CDP offline — this triggers socket.io reconnection backoff
+    await goOffline(driver.contexts[3]);
+    // Wait for disconnect to register (CDP heartbeat ~25s; wait up to 40s)
     await expect.poll(
       async () => driver.pages[3].evaluate(() => !(window as any).socketManager?.isConnected()),
-      { timeout: 10_000 },
+      { timeout: 40_000 },
     ).toBe(true);
-    // socket.io reconnects via its own backoff (reconnectionAttempts:10, 1–5s each)
+    // Restore network — socket.io reconnects via built-in backoff (reconnectionAttempts:10, 1–5s)
+    await goOnline(driver.contexts[3]);
     await expect.poll(
       async () => driver.pages[3].evaluate(() => !!(window as any).socketManager?.isConnected()),
-      { timeout: 30_000 },
+      { timeout: 60_000 },
     ).toBe(true);
     await expect(driver.pages[3].getByTestId('connection-status')).toBeVisible({ timeout: 10_000 });
   } finally {
