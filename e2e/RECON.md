@@ -296,8 +296,6 @@ Branch: feat/e2e-mobile-emulation
 
 ### App-Side Mobile Readiness Gaps (Findings)
 
-Record actual test outcomes here after running Task 12 Step 2.
-
 | ID | Finding | Test(s) | Status after run |
 |----|---------|---------|-----------------|
 | F1 | No `visibilitychange` listener — no proactive sync on foreground | B1–B4, S1–S2 | Partially masked in Playwright (no JS throttle); real-device concern |
