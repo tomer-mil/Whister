@@ -278,3 +278,41 @@ Bind for 127.0.0.1:5432 failed: port is already allocated
 
 **Additional divergence — Frontend port 3000 blocked:**
 The `open-webui` container runs on host port 3000. The frontend cannot start on port 3000 without stopping open-webui first. This affects Task 4's `ensureServicesRunning()` frontend bootstrap. The suite needs either a different port (e.g. 3001) or pre-condition that open-webui is stopped.
+
+---
+
+## 7. Mobile Emulation Suite — Findings (2026-06-26)
+
+Branch: feat/e2e-mobile-emulation
+
+### Harness
+
+| Component | File | Status |
+|---|---|---|
+| Device profiles | `e2e/mobile/profiles.ts` | iPhone SE (3rd gen) 375×667 DPR 2; iPhone 14 390×664 DPR 3 |
+| Lifecycle helpers | `e2e/mobile/lifecycle.ts` | background/foreground/rotateLandscape/rotatePortrait |
+| Network helpers | `e2e/mobile/network.ts` | goOffline/goOnline/blockRoute/throttle3G/disconnectSocket |
+| Touch helpers | `e2e/mobile/touch.ts` | assertTouchTargets (44px guideline) |
+
+### App-Side Mobile Readiness Gaps (Findings)
+
+Record actual test outcomes here after running Task 12 Step 2.
+
+| ID | Finding | Test(s) | Status after run |
+|----|---------|---------|-----------------|
+| F1 | No `visibilitychange` listener — no proactive sync on foreground | B1–B4, S1–S2 | Partially masked in Playwright (no JS throttle); real-device concern |
+| F2 | No `online` event listener — reconnect via backoff only | N1 | PASS — N1 passed; socket reconnected via exponential backoff, connection-status indicator recovered |
+| F3 | No auto-pass on disconnect (SG-6 D4) — game can block | B4, R2 | FAIL (finding confirmed) — B4 PASS (turn held correctly); R2 FAIL (game blocked, no auto-pass on disconnect) |
+| F4 | Touch targets may be undersized (<44px) | T2a, T2b | PASS — both T2a (iPhone SE) and T2b (iPhone 14) passed; bidding controls meet 44×44px guideline |
+| F5 | Zoom lock may be missing from viewport meta | X1 | FAIL (finding confirmed) — X1 failed; viewport meta lacks `user-scalable=no` or `maximum-scale=1` |
+| F6 | No proactive sync:state on reconnect | B3, N1 | Socket reconnects; state relies on server push |
+
+### Run Commands
+
+```bash
+# Mobile suite only
+cd e2e && npx playwright test tests/mobile --reporter=list
+
+# Full suite (existing + mobile)
+cd e2e && npm test
+```
