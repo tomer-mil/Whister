@@ -125,6 +125,9 @@ test('K1: room join form accessible with simulated keyboard-open viewport (375×
     // P1 joins — but first simulate keyboard open by shrinking viewport
     await driver.pages[1].setViewportSize({ width: 375, height: 350 });
     await driver.pages[1].goto('/room/join');
+    const nameInput = driver.pages[1].getByPlaceholder('Your Name');
+    await expect(nameInput).toBeVisible({ timeout: 10_000 });
+    await nameInput.fill('P1Mobile');
     const joinInput = driver.pages[1].getByPlaceholder('Room Code');
     await expect(joinInput).toBeVisible({ timeout: 10_000 });
     await joinInput.fill(roomCode);
@@ -134,7 +137,7 @@ test('K1: room join form accessible with simulated keyboard-open viewport (375×
     const box = await submitBtn.boundingBox();
     expect(box, 'Submit button not found at 375x350 (keyboard-open simulation)').not.toBeNull();
     await submitBtn.tap();
-    await expect(driver.pages[1]).toHaveURL(/\/room\/[A-Za-z0-9]+$/, { timeout: 15_000 });
+    await expect(driver.pages[1]).toHaveURL(new RegExp(`/room/${roomCode}`), { timeout: 15_000 });
   } finally {
     await driver.close();
   }
@@ -238,6 +241,7 @@ test('X3: room code paste (fill) correctly joins the room', async ({ browser }) 
     const roomCode = await driver.lobby(0).createRoom();
     await driver.pages[1].goto('/room/join');
     // page.fill() simulates clipboard paste — no keystroke-by-keystroke input
+    await driver.pages[1].getByPlaceholder('Your Name').fill('PastePlayer');
     await driver.pages[1].getByPlaceholder('Room Code').fill(roomCode);
     await driver.pages[1].getByRole('button', { name: /join/i }).tap();
     await expect(driver.pages[1]).toHaveURL(new RegExp(`/room/${roomCode}`), { timeout: 15_000 });
