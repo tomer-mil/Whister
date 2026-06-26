@@ -1294,22 +1294,27 @@ Example 2: Bid 5, won 3 -> 2 deviation * -10 = -20 points
 
 #### Zero Bid
 
+# A zero bid is only special in an under game. In an over game it scores
+# like any contract: made (won 0) = 0² + 10 = 10, failed = -10 * tricks_won.
 ```python
-if tricks_won == 0:
-    if game_type == "over":
-        score = 25
-    else:  # under
+if game_type == "over":
+    if tricks_won == 0:
+        score = 0 * 0 + 10   # = 10
+    else:
+        score = tricks_won * -10
+else:  # under game (special zero scoring)
+    if tricks_won == 0:
         score = 50
-else:
-    if tricks_won == 1:
+    elif tricks_won == 1:
         score = -50
     else:  # 2 or more tricks
         score = -50 + (tricks_won - 1) * 10
 
-Example 1: Zero bid, 0 tricks, over game -> 25 points
+Example 1: Zero bid, 0 tricks, over game -> 0² + 10 = 10 points
 Example 2: Zero bid, 0 tricks, under game -> 50 points
-Example 3: Zero bid, 1 trick -> -50 points
-Example 4: Zero bid, 3 tricks -> -50 + (3-1)*10 = -30 points
+Example 3: Zero bid, 1 trick, over game -> -10 points
+Example 4: Zero bid, 1 trick, under game -> -50 points
+Example 5: Zero bid, 3 tricks, under game -> -50 + (3-1)*10 = -30 points
 ```
 
 #### Game Type Determination

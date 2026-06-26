@@ -1470,21 +1470,24 @@ class ScoringService:
         Scoring rules:
         - Made contract (non-zero): bid² + 10
         - Failed contract (non-zero): -10 per deviation
+        - Zero bid (over game): scored like any contract — made (won 0) = 0² + 10 = 10,
+          failed = -10 per trick won
         - Made zero (under game): 50 points
-        - Made zero (over game): 25 points
-        - Failed zero (1 trick): -50 points
-        - Failed zero (2+ tricks): -50 + 10 per extra trick
+        - Failed zero, under game (1 trick): -50 points
+        - Failed zero, under game (2+ tricks): -50 + 10 per extra trick
         """
         is_over = game_type == "over"
-        
-        if contract_bid == 0:
+
+        # A zero bid is only special in an under game.
+        if contract_bid == 0 and not is_over:
             if tricks_won == 0:
-                return 25 if is_over else 50
+                return 50
             elif tricks_won == 1:
                 return -50
             else:
                 return -50 + (tricks_won - 1) * 10
-        
+
+        # Non-zero contract, or any zero bid in an over game.
         if tricks_won == contract_bid:
             return (contract_bid * contract_bid) + 10
         else:
@@ -1700,11 +1703,15 @@ class TestScoringService:
     
     def test_zero_bid_success(self, scoring: ScoringService) -> None:
         assert scoring.calculate_round_score(0, 0, "under") == 50
-        assert scoring.calculate_round_score(0, 0, "over") == 25
+        # Over-game zero is scored like any contract: 0² + 10 = 10
+        assert scoring.calculate_round_score(0, 0, "over") == 10
     
     def test_zero_bid_failed(self, scoring: ScoringService) -> None:
         assert scoring.calculate_round_score(0, 1, "under") == -50
         assert scoring.calculate_round_score(0, 3, "under") == -30
+        # Over-game zero failures use the normal -10 × tricks formula
+        assert scoring.calculate_round_score(0, 1, "over") == -10
+        assert scoring.calculate_round_score(0, 3, "over") == -30
     
     def test_determine_game_type(self, scoring: ScoringService) -> None:
         assert scoring.determine_game_type([5, 4, 3, 2]) == "over"

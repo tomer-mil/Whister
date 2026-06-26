@@ -2455,10 +2455,12 @@ export function calculateScore(
   gameType: 'over' | 'under'
 ): number {
   const isOver = gameType === 'over';
-  
-  if (contractBid === 0) {
+
+  // A zero bid is only special in an under game. In an over game it scores
+  // like any other contract (made = 0² + 10 = 10, failed = -10 × tricks).
+  if (contractBid === 0 && !isOver) {
     if (tricksWon === 0) {
-      return isOver ? 25 : 50;
+      return 50;
     } else if (tricksWon === 1) {
       return -50;
     } else {
@@ -4491,12 +4493,17 @@ describe('Score Calculation', () => {
   
   it('calculates made zero correctly', () => {
     expect(calculateScore(0, 0, 'under')).toBe(50);
-    expect(calculateScore(0, 0, 'over')).toBe(25);
+    expect(calculateScore(0, 0, 'over')).toBe(10); // over zero = 0² + 10
   });
   
-  it('calculates failed zero correctly', () => {
-    expect(calculateScore(0, 1, 'over')).toBe(-50);
-    expect(calculateScore(0, 3, 'over')).toBe(-30); // -50 + 10×2
+  it('calculates failed zero in under game correctly', () => {
+    expect(calculateScore(0, 1, 'under')).toBe(-50);
+    expect(calculateScore(0, 3, 'under')).toBe(-30); // -50 + 10×2
+  });
+  
+  it('calculates zero in over game like any contract', () => {
+    expect(calculateScore(0, 1, 'over')).toBe(-10); // -10 × 1
+    expect(calculateScore(0, 2, 'over')).toBe(-20); // -10 × 2
   });
 });
 

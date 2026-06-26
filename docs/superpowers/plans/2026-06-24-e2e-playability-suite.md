@@ -971,7 +971,7 @@ const cases: Case[] = [
     round: { trump: 'clubs', trumpWinner: 0, contracts: [5, 3, 3, 3], tricks: [3, 4, 3, 3] } },
   { name: 'zero made, under (+50)', seat: 3, expected: 50,
     round: { trump: 'clubs', trumpWinner: 0, contracts: [5, 3, 2, 0], tricks: [6, 4, 3, 0] } },
-  { name: 'zero made, over (+25)', seat: 3, expected: 25,
+  { name: 'zero made, over (+10)', seat: 3, expected: 10,
     round: { trump: 'clubs', trumpWinner: 0, contracts: [6, 5, 3, 0], tricks: [5, 5, 3, 0] } },
   { name: 'failed zero, 1 trick (-50)', seat: 3, expected: -50,
     round: { trump: 'clubs', trumpWinner: 0, contracts: [5, 4, 3, 0], tricks: [4, 4, 4, 1] } },

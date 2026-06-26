@@ -99,27 +99,64 @@ class TestZeroBidUnderGame:
 
 
 class TestZeroBidOverGame:
-    """Test scoring for zero bid in over game."""
+    """Test scoring for zero bid in over game.
+
+    In an OVER game a zero bid is NOT special — it scores exactly like any
+    other contract: made (won 0) → 0² + 10 = +10; failed → -10 × tricks won.
+    """
 
     def test_made_zero_over_game(self, scoring_service: ScoringService) -> None:
-        """Test bid 0, won 0 in over game → +25."""
+        """Test bid 0, won 0 in over game → 0² + 10 = +10."""
         score = scoring_service.calculate_round_score(0, 0, GameType.OVER)
-        assert score == 25
+        assert score == 10
 
     def test_failed_zero_1_trick_over_game(self, scoring_service: ScoringService) -> None:
-        """Test bid 0, won 1 in over game → -50."""
+        """Test bid 0, won 1 in over game → -10 x 1 = -10."""
         score = scoring_service.calculate_round_score(0, 1, GameType.OVER)
-        assert score == -50
+        assert score == -10
 
     def test_failed_zero_2_tricks_over_game(self, scoring_service: ScoringService) -> None:
-        """Test bid 0, won 2 in over game → -50 + 10x1 = -40."""
+        """Test bid 0, won 2 in over game → -10 x 2 = -20."""
         score = scoring_service.calculate_round_score(0, 2, GameType.OVER)
-        assert score == -40
+        assert score == -20
 
     def test_failed_zero_3_tricks_over_game(self, scoring_service: ScoringService) -> None:
-        """Test bid 0, won 3 in over game → -50 + 10x2 = -30."""
+        """Test bid 0, won 3 in over game → -10 x 3 = -30."""
         score = scoring_service.calculate_round_score(0, 3, GameType.OVER)
         assert score == -30
+
+    def test_failed_zero_13_tricks_over_game(self, scoring_service: ScoringService) -> None:
+        """Test bid 0, won 13 in over game → -10 x 13 = -130."""
+        score = scoring_service.calculate_round_score(0, 13, GameType.OVER)
+        assert score == -130
+
+
+class TestZeroBidGameTypeContrast:
+    """Directly contrast a zero bid across over vs under games.
+
+    These tests pin down the core rule that the two game types score zero
+    bids differently, so a regression in either branch is caught immediately.
+    """
+
+    def test_made_zero_over_vs_under(self, scoring_service: ScoringService) -> None:
+        """Made zero: over → +10 (0²+10), under → +50 (special)."""
+        assert scoring_service.calculate_round_score(0, 0, GameType.OVER) == 10
+        assert scoring_service.calculate_round_score(0, 0, GameType.UNDER) == 50
+
+    def test_failed_zero_1_trick_over_vs_under(self, scoring_service: ScoringService) -> None:
+        """Failed zero by 1: over → -10, under → -50."""
+        assert scoring_service.calculate_round_score(0, 1, GameType.OVER) == -10
+        assert scoring_service.calculate_round_score(0, 1, GameType.UNDER) == -50
+
+    def test_failed_zero_2_tricks_over_vs_under(self, scoring_service: ScoringService) -> None:
+        """Failed zero by 2: over → -20, under → -40."""
+        assert scoring_service.calculate_round_score(0, 2, GameType.OVER) == -20
+        assert scoring_service.calculate_round_score(0, 2, GameType.UNDER) == -40
+
+    def test_failed_zero_3_tricks_over_vs_under(self, scoring_service: ScoringService) -> None:
+        """Failed zero by 3: over → -30, under → -30 (the one value they share)."""
+        assert scoring_service.calculate_round_score(0, 3, GameType.OVER) == -30
+        assert scoring_service.calculate_round_score(0, 3, GameType.UNDER) == -30
 
 
 class TestGameTypeDetermination:

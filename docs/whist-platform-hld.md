@@ -1779,19 +1779,20 @@ def calculate_round_score(player: RoundPlayer, is_over_game: bool) -> int:
     Scoring rules:
     - Made contract (non-zero): bid² + 10
     - Failed contract (non-zero): -10 per deviation
+    - Zero bid (over game): scored like any contract — made (won 0) = 0² + 10 = 10,
+      failed = -10 per trick won
     - Made zero (under game): 50 points
-    - Made zero (over game): 25 points
-    - Failed zero (1 trick): -50 points
-    - Failed zero (2+ tricks): -50 + 10 per extra trick
+    - Failed zero, under game (1 trick): -50 points
+    - Failed zero, under game (2+ tricks): -50 + 10 per extra trick
     """
     contract = player.contract_bid
     tricks = player.tricks_won
     
-    # Zero bid handling
-    if contract == 0:
+    # Zero bid is only special in an under game.
+    if contract == 0 and not is_over_game:
         if tricks == 0:
-            # Made zero: 50 in under, 25 in over
-            return 25 if is_over_game else 50
+            # Made zero (under): 50
+            return 50
         elif tricks == 1:
             # Failed zero with 1 trick: -50
             return -50
@@ -1799,7 +1800,7 @@ def calculate_round_score(player: RoundPlayer, is_over_game: bool) -> int:
             # Failed zero with 2+ tricks: -50 + 10 per extra trick
             return -50 + (tricks - 1) * 10
     
-    # Regular bid handling
+    # Regular bid handling (incl. any zero bid in an over game)
     if tricks == contract:
         # Made contract: bid² + 10
         return (contract * contract) + 10
