@@ -291,7 +291,7 @@ Branch: feat/e2e-mobile-emulation
 |---|---|---|
 | Device profiles | `e2e/mobile/profiles.ts` | iPhone SE (3rd gen) 375×667 DPR 2; iPhone 14 390×664 DPR 3 |
 | Lifecycle helpers | `e2e/mobile/lifecycle.ts` | background/foreground/rotateLandscape/rotatePortrait |
-| Network helpers | `e2e/mobile/network.ts` | goOffline/goOnline/blockRoute/throttle3G/disconnectSocket |
+| Network helpers | `e2e/mobile/network.ts` | goOffline/goOnline/blockRoute/throttle3G |
 | Touch helpers | `e2e/mobile/touch.ts` | assertTouchTargets (44px guideline) |
 
 ### App-Side Mobile Readiness Gaps (Findings)
