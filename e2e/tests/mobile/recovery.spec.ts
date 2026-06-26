@@ -52,16 +52,27 @@ test('R2: tab close on own bid turn; other players can determine if game unblock
     await driver.pages[3].close();
     // Finding F3: if SG-6 D4 auto-pass is implemented, the game should advance automatically.
     // If not, the game blocks. Check by polling whether ANY other player gets bidding controls.
-    const advanced = await expect.poll(
-      async () => {
-        for (let i = 0; i < 3; i++) {
-          if (await driver.pages[i].getByTestId('bidding-pass').isVisible()) return true;
-          if (await driver.pages[i].getByTestId('bidding-confirm').isVisible()) return true;
-        }
-        return false;
-      },
-      { timeout: 30_000 },
-    ).toBeTruthy().catch(() => false);
+    let advanced = false;
+    try {
+      await expect.poll(
+        async () => {
+          for (let i = 0; i < 3; i++) {
+            if (await driver.pages[i].getByTestId('bidding-pass').isVisible()) {
+              advanced = true;
+              return true;
+            }
+            if (await driver.pages[i].getByTestId('bidding-confirm').isVisible()) {
+              advanced = true;
+              return true;
+            }
+          }
+          return false;
+        },
+        { timeout: 30_000 },
+      ).toBeTruthy();
+    } catch {
+      // timed out — advanced stays false
+    }
     if (!advanced) {
       // Game is stuck — this confirms finding F3 (no auto-pass on disconnect).
       // Fail with a descriptive message so it shows up as a known finding, not a mystery.

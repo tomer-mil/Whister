@@ -45,15 +45,3 @@ export async function throttle3G(page: Page): Promise<() => Promise<void>> {
     await session.detach();
   };
 }
-
-/**
- * Force-disconnect the socket.io client (window.socketManager.getSocket().disconnect()).
- * The socket manager's built-in reconnect backoff then kicks in.
- * Requires the frontend to be running (window.socketManager is set in manager.ts).
- */
-export async function disconnectSocket(page: Page): Promise<void> {
-  await page.evaluate(() => {
-    const sm = (window as any).socketManager;
-    sm?.getSocket()?.disconnect();
-  });
-}

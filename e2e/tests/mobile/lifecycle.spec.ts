@@ -99,6 +99,8 @@ test('B4: background while it is your trump bid turn; turn remains on foreground
     // Find the active (first-to-bid) player and background them immediately
     const activeIdx = await firstPageWith(driver.pages, 'bidding-pass');
     await background(driver.pages[activeIdx]);
+    // No DOM visibility check while backgrounded — Playwright's background() fires events but
+    // does not hide elements from isVisible(). Turn-held check after foreground is the meaningful gate.
     await foreground(driver.pages[activeIdx]);
     // After foreground, it's still their turn (auto-pass not implemented)
     await expect(driver.pages[activeIdx].getByTestId('bidding-pass')).toBeVisible({ timeout: 10_000 });
