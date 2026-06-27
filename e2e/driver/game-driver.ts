@@ -62,7 +62,7 @@ export class GameDriver {
     await this.scores(0).waitLoaded();
   }
 
-  private async runTrumpAuction(trump: TrumpSuit, winner: number): Promise<void> {
+  async runTrumpAuction(trump: TrumpSuit, winner: number): Promise<void> {
     // Designated winner bids minimum on their turn; everyone else passes.
     for (let guard = 0; guard < 12; guard++) {
       const active = await firstPageWith(this.pages, 'bidding-pass', 20_000).catch(() => -1);
@@ -84,7 +84,7 @@ export class GameDriver {
     return false;
   }
 
-  private async runContractBidding(contracts: [number, number, number, number]): Promise<void> {
+  async runContractBidding(contracts: [number, number, number, number]): Promise<void> {
     for (let guard = 0; guard < 8; guard++) {
       const active = await firstPageWith(this.pages, 'bidding-confirm', 20_000).catch(() => -1);
       if (active === -1) break;
@@ -104,7 +104,7 @@ export class GameDriver {
    * ANY player can claim at any time — attribution is by who clicks.
    * So simply: for each seat, click their "Claim Trick" button N times (N = tricks[seat]).
    */
-  private async claimAllTricks(tricks: [number, number, number, number]): Promise<void> {
+  async claimAllTricks(tricks: [number, number, number, number]): Promise<void> {
     for (let seat = 0; seat < 4; seat++) {
       for (let t = 0; t < tricks[seat]; t++) {
         await this.playing(seat).claimTrick();

@@ -2,4 +2,5 @@
 .services-state.json
 playwright-report/
 test-results/
+results.json
 node_modules/

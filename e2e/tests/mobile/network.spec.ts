@@ -35,41 +35,36 @@ test('N1: socket reconnects and connection indicator recovers after offline→on
   }
 });
 
-// N2: offline at own bid turn; reconnect; bid placed successfully
-test('N2: go offline on own turn; reconnect; bid accepted without duplicate', async ({ browser }) => {
-  test.setTimeout(120_000);
+// N2: submit while disconnected; socket.io buffers at most one action and advances cleanly.
+test('N2: mid-action connectivity loss neither drops nor duplicates a pass', async ({ browser }) => {
+  test.setTimeout(180_000);
   const driver = new GameDriver(browser);
   await driver.setup(IPHONE_SE);
   try {
     await driver.createGame();
     await driver.confirmSeating();
-    // Advance until it is P3's trump bid turn
-    let p3Turn = false;
-    for (let g = 0; g < 8; g++) {
-      const activeIdx = await firstPageWith(driver.pages, 'bidding-pass', 20_000).catch(() => -1);
-      if (activeIdx === -1) break;
-      if (activeIdx === 3) { p3Turn = true; break; }
-      await driver.bidding(activeIdx).pass();
-    }
-    if (!p3Turn) { test.skip(); return; }
-    // Go offline during P3's turn
-    await goOffline(driver.contexts[3]);
+    const activeIdx = await firstPageWith(driver.pages, 'bidding-pass');
+    await goOffline(driver.contexts[activeIdx]);
     await expect.poll(
-      async () => driver.pages[3].evaluate(() => !(window as any).socketManager?.isConnected()),
+      async () => driver.pages[activeIdx].evaluate(
+        () => !(window as Window & { socketManager?: { isConnected(): boolean } }).socketManager?.isConnected(),
+      ),
       { timeout: 40_000 },
     ).toBe(true);
-    // Restore connectivity
-    await goOnline(driver.contexts[3]);
+
+    await driver.pages[activeIdx].tap('[data-testid="bidding-pass"]');
+    await goOnline(driver.contexts[activeIdx]);
     await expect.poll(
-      async () => driver.pages[3].evaluate(() => !!(window as any).socketManager?.isConnected()),
+      async () => driver.pages[activeIdx].evaluate(
+        () => !!(window as Window & { socketManager?: { isConnected(): boolean } }).socketManager?.isConnected(),
+      ),
       { timeout: 60_000 },
     ).toBe(true);
-    // P3 places their bid after reconnect
-    await expect(driver.pages[3].getByTestId('bidding-pass')).toBeVisible({ timeout: 15_000 });
-    await driver.bidding(3).pass();
-    // Another player gets controls — no duplicate bid
+
     const nextIdx = await firstPageWith(driver.pages, 'bidding-pass', 20_000);
-    expect(nextIdx).not.toBe(3);
+    expect(nextIdx).not.toBe(activeIdx);
+    await driver.bidding(nextIdx).placeTrumpBid(5, 'clubs');
+    expect(await firstPageWith(driver.pages, 'bidding-pass', 20_000)).not.toBe(nextIdx);
   } finally {
     await driver.close();
   }

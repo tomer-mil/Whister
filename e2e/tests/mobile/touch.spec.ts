@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { GameDriver } from '../../driver';
-import { IPHONE_SE, IPHONE_14, assertTouchTargets } from '../../mobile';
+import {
+  IPHONE_SE,
+  IPHONE_14,
+  assertTouchTargets,
+  longPress,
+  swipe,
+} from '../../mobile';
 import { firstPageWith } from '../../helpers/wait';
 
 // T1: touch (tap) input drives a trump bid
@@ -90,8 +96,8 @@ test('T4: two rapid taps on claim-trick count as one trick claim', async ({ brow
     await driver.createGame();
     await driver.confirmSeating();
     // Drive through bidding to reach playing phase
-    await (driver as any).runTrumpAuction('clubs', 0);
-    await (driver as any).runContractBidding([5, 3, 3, 3]);
+    await driver.runTrumpAuction('clubs', 0);
+    await driver.runContractBidding([5, 3, 3, 3]);
     // Now in playing phase — P0 claims twice rapidly
     const page = driver.pages[0];
     await expect(page.getByTestId('playing-claim-trick')).toBeVisible({ timeout: 15_000 });
@@ -114,6 +120,60 @@ test('T4: two rapid taps on claim-trick count as one trick claim', async ({ brow
   }
 });
 
+test('T5: long-press changes the bid counter once without submitting a bid', async ({ browser }) => {
+  const driver = new GameDriver(browser);
+  await driver.setup(IPHONE_SE);
+  try {
+    await driver.createGame();
+    await driver.confirmSeating();
+    const activeIdx = await firstPageWith(driver.pages, 'bidding-pass');
+    const page = driver.pages[activeIdx];
+    const initial = Number(await page.getByTestId('bidding-counter-value').innerText());
+
+    await longPress(page, '[data-testid="bidding-counter-plus"]');
+
+    await expect(page.getByTestId('bidding-counter-value')).toHaveText(String(initial + 1));
+    await expect(page.getByTestId('bidding-pass')).toBeVisible();
+    expect(await firstPageWith(driver.pages, 'bidding-pass')).toBe(activeIdx);
+  } finally {
+    await driver.close();
+  }
+});
+
+test('T6: touch swipe scrolls scores without changing authoritative scores', async ({ browser }) => {
+  test.setTimeout(180_000);
+  const driver = new GameDriver(browser);
+  await driver.setup(IPHONE_SE);
+  try {
+    const { gameId } = await driver.createGame();
+    await driver.confirmSeating();
+    await driver.playRound({
+      trump: 'clubs',
+      trumpWinner: 0,
+      contracts: [5, 3, 3, 3],
+      tricks: [5, 3, 3, 2],
+    });
+    const page = driver.pages[0];
+    await page.setViewportSize({ width: 375, height: 350 });
+    await expect.poll(
+      () => page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight),
+    ).toBe(true);
+    const before = await page.evaluate(() => window.scrollY);
+    const uiScore = await driver.scores(0).roundScore(1, 0);
+    const backendBefore = await driver.backendScores(gameId);
+
+    await swipe(page, { x: 190, y: 320 }, { x: 190, y: 60 });
+
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
+    expect(await driver.scores(0).roundScore(1, 0)).toBe(uiScore);
+    const backendAfter = await driver.backendScores(gameId);
+    expect(backendAfter.rounds[0].scores[0]).toBe(backendBefore.rounds[0].scores[0]);
+    expect(uiScore).toBe(backendAfter.rounds[0].scores[0]);
+  } finally {
+    await driver.close();
+  }
+});
+
 // K1: room-join form works when keyboard-open shrinks viewport to ~375×350
 test('K1: room join form accessible with simulated keyboard-open viewport (375×350)', async ({ browser }) => {
   const driver = new GameDriver(browser);
@@ -130,12 +190,17 @@ test('K1: room join form accessible with simulated keyboard-open viewport (375×
     await nameInput.fill('P1Mobile');
     const joinInput = driver.pages[1].getByPlaceholder('Room Code');
     await expect(joinInput).toBeVisible({ timeout: 10_000 });
+    await joinInput.focus();
+    await expect(joinInput).toBeFocused();
     await joinInput.fill(roomCode);
     const submitBtn = driver.pages[1].getByRole('button', { name: /join/i });
     await expect(submitBtn).toBeVisible({ timeout: 10_000 });
+    await submitBtn.scrollIntoViewIfNeeded();
     // Finding: if submit button is not visible, it's below the fold when keyboard is open
     const box = await submitBtn.boundingBox();
     expect(box, 'Submit button not found at 375x350 (keyboard-open simulation)').not.toBeNull();
+    expect(box!.y + box!.height, 'Submit button is clipped by keyboard-height viewport')
+      .toBeLessThanOrEqual(350);
     await submitBtn.tap();
     await expect(driver.pages[1]).toHaveURL(new RegExp(`/room/${roomCode}`), { timeout: 15_000 });
   } finally {
@@ -153,6 +218,8 @@ test('K2: display name input value retained after blur', async ({ browser }) => 
     await expect(nameInput).toBeVisible({ timeout: 10_000 });
     await nameInput.fill('Alice');
     await nameInput.blur();
+    await driver.pages[0].setViewportSize({ width: 375, height: 350 });
+    await driver.pages[0].setViewportSize({ width: 375, height: 667 });
     await expect(nameInput).toHaveValue('Alice');
   } finally {
     await driver.close();
@@ -250,8 +317,22 @@ test('X3: room code paste (fill) correctly joins the room', async ({ browser }) 
   }
 });
 
-// G1 deferred — back navigation guard not yet implemented
-test.skip('G1: browser back from game page (deferred — no navigation guard)', () => {
-  // Deferred: implement when the app adds a back-navigation guard.
-  // Expected behavior: player is prompted before leaving an active game.
+test('G1: browser back then forward recovers the active mobile game', async ({ browser }) => {
+  const driver = new GameDriver(browser);
+  await driver.setup(IPHONE_SE);
+  try {
+    await driver.createGame();
+    await driver.confirmSeating();
+    const activeBefore = await firstPageWith(driver.pages, 'bidding-pass');
+    const page = driver.pages[activeBefore];
+
+    await page.goBack({ waitUntil: 'domcontentloaded' });
+    await page.goForward({ waitUntil: 'domcontentloaded' });
+
+    await expect(page).toHaveURL(/\/game\//);
+    await expect(page.getByTestId('connection-status')).toContainText('Connected');
+    await expect(page.getByTestId('bidding-pass')).toBeVisible({ timeout: 20_000 });
+  } finally {
+    await driver.close();
+  }
 });

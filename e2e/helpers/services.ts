@@ -1,4 +1,4 @@
-import { execSync, spawn } from 'child_process';
+import { execFileSync, spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 
@@ -6,12 +6,45 @@ const ROOT_DIR = path.resolve(__dirname, '../..');
 const STATE_FILE = path.resolve(__dirname, '..', '.services-state.json');
 const API_URL = process.env.API_URL || 'http://localhost:8001';
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
-const HEALTH_URL = `${API_URL}/health/ready`;
+const API_ORIGIN = new URL(API_URL).origin;
+const BASE_ORIGIN = new URL(BASE_URL).origin;
+const HEALTH_URL = `${API_ORIGIN}/health/ready`;
+const BACKEND_IDENTITY_URL = `${API_ORIGIN}/api/v1`;
+const FRONTEND_IDENTITY_URL = `${BASE_ORIGIN}/manifest.json`;
+const COMPOSE_FILE = path.resolve(ROOT_DIR, 'docker-compose.yml');
 
 interface ServicesState {
   startedDocker: boolean;
   startedFrontend: boolean;
   frontendPid?: number;
+}
+
+type JsonObject = Record<string, unknown>;
+
+export function assertWhisterServiceUrls(apiUrl: string, baseUrl: string): void {
+  const api = new URL(apiUrl);
+  const frontend = new URL(baseUrl);
+  const localHosts = new Set(['localhost', '127.0.0.1']);
+
+  if (!localHosts.has(api.hostname) || api.port !== '8001') {
+    throw new Error('[e2e] API_URL must target Whister on localhost:8001');
+  }
+  if (!localHosts.has(frontend.hostname) || frontend.port !== '3001') {
+    throw new Error('[e2e] BASE_URL must target Whister on localhost:3001');
+  }
+}
+
+export function isWhisterBackendIdentity(value: unknown): boolean {
+  if (!isJsonObject(value)) return false;
+  return value.name === 'Whist Score Keeper' && value.status === 'ready';
+}
+
+export function isWhisterFrontendIdentity(value: unknown): boolean {
+  if (!isJsonObject(value)) return false;
+  const names = [value.name, value.short_name]
+    .filter((name): name is string => typeof name === 'string')
+    .map((name) => name.toLowerCase());
+  return names.some((name) => name === 'whister' || name === 'whist');
 }
 
 /**
@@ -23,6 +56,12 @@ interface ServicesState {
  * - Records what was started so globalTeardown can reverse it.
  */
 export async function ensureServicesRunning(): Promise<void> {
+  assertWhisterServiceUrls(API_URL, BASE_URL);
+  const frontendPort = process.env.FRONTEND_PORT || '3001';
+  if (frontendPort !== '3001') {
+    throw new Error('[e2e] FRONTEND_PORT must be 3001 for the Whister e2e stack');
+  }
+
   const state: ServicesState = { startedDocker: false, startedFrontend: false };
 
   // ── Backend ─────────────────────────────────────────────────────
@@ -43,7 +82,11 @@ export async function ensureServicesRunning(): Promise<void> {
 
     console.log('[e2e] Backend not healthy – running docker compose up -d ...');
     try {
-      execSync('docker compose up -d', { cwd: ROOT_DIR, stdio: 'pipe' });
+      execFileSync(
+        'docker',
+        ['compose', '--project-name', 'whister', '--file', COMPOSE_FILE, 'up', '-d'],
+        { cwd: ROOT_DIR, stdio: 'pipe' },
+      );
       state.startedDocker = true;
     } catch (err) {
       // Docker failed — check if Whister is already reachable (race: started between checks)
@@ -64,14 +107,18 @@ export async function ensureServicesRunning(): Promise<void> {
   } else {
     console.log('[e2e] Backend already healthy (Whister confirmed on port ' + backendPort + ').');
   }
+  await assertServiceIdentity(
+    BACKEND_IDENTITY_URL,
+    isWhisterBackendIdentity,
+    'backend',
+  );
 
   // ── Frontend ────────────────────────────────────────────────────
   if (!(await isReachable(BASE_URL))) {
     console.log('[e2e] Frontend not reachable – building & starting (production) ...');
     const frontendDir = path.resolve(ROOT_DIR, 'frontend');
-    execSync('npm run build', { cwd: frontendDir, stdio: 'inherit' });
-    const port = process.env.FRONTEND_PORT || '3001';
-    const proc = spawn('npm', ['run', 'start', '--', '--port', port], {
+    execFileSync('npm', ['run', 'build'], { cwd: frontendDir, stdio: 'inherit' });
+    const proc = spawn('npm', ['run', 'start', '--', '--port', frontendPort], {
       cwd: frontendDir,
       detached: true,
       stdio: 'ignore',
@@ -85,6 +132,11 @@ export async function ensureServicesRunning(): Promise<void> {
     const frontendPort = extractPort(BASE_URL);
     console.log('[e2e] Frontend already reachable on port ' + frontendPort + '.');
   }
+  await assertServiceIdentity(
+    FRONTEND_IDENTITY_URL,
+    isWhisterFrontendIdentity,
+    'frontend',
+  );
 
   fs.writeFileSync(STATE_FILE, JSON.stringify(state));
 }
@@ -121,6 +173,34 @@ async function isReachable(url: string): Promise<boolean> {
     return res.ok;
   } catch {
     return false;
+  }
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+async function assertServiceIdentity(
+  url: string,
+  predicate: (value: unknown) => boolean,
+  service: 'backend' | 'frontend',
+): Promise<void> {
+  let body: unknown;
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(3000) });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    body = await response.json();
+  } catch (error) {
+    throw new Error(`[e2e] Unable to verify Whister ${service} identity at ${url}: ${String(error)}`);
+  }
+
+  if (!predicate(body)) {
+    throw new Error(
+      `[e2e] Refusing to run: ${url} is not the Whister ${service}. ` +
+      'No foreign service will be reused or modified.',
+    );
   }
 }
 
