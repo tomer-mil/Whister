@@ -6,6 +6,7 @@
 import { useCallback, useEffect } from 'react';
 import { useSocket } from './use-socket';
 import { useStore } from '@/stores';
+import type { GameStatus, RoundPhase } from '@/types/game';
 import type {
   RoundTrickWonPayload,
   RoundTrickUndonePayload,
@@ -16,6 +17,17 @@ import type {
 export interface UseGameOptions {
   roomCode: string;
 }
+
+const syncPhaseMap: Record<GameStatus, RoundPhase | null> = {
+  waiting: null,
+  seating: null,
+  bidding_trump: 'trump_bidding',
+  frisch: 'frisch',
+  bidding_contract: 'contract_bidding',
+  playing: 'playing',
+  round_complete: 'complete',
+  finished: null,
+};
 
 /**
  * Hook for game phase management and trick claiming
@@ -126,8 +138,8 @@ export function useGame(options: UseGameOptions) {
 
     // Sync state rehydration - backend sends sync:state in response to sync:request
     socket.on('sync:state', (payload: SyncStatePayload) => {
-      // Update game phase
-      setPhase(payload.phase as any);
+      const frontendPhase = syncPhaseMap[payload.phase];
+      if (frontendPhase) setPhase(frontendPhase);
 
       // Update current bidder if in a bidding phase
       if (payload.current_bidder) {
@@ -161,9 +173,19 @@ export function useGame(options: UseGameOptions) {
         });
       }
     };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [emit, roomCode]);
+
+  // A reload or reconnect may complete while the browser still reports the page
+  // as hidden. Request state whenever the socket becomes ready as well.
+  useEffect(() => {
+    if (!socket || !roomCode) return;
+    emit('sync:request', { room_code: roomCode }).catch(() => {
+      // Best-effort; room:joined remains the fallback state source.
+    });
+  }, [socket, emit, roomCode]);
 
   return {
     socket,

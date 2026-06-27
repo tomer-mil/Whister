@@ -7,7 +7,7 @@
  */
 
 import type { Socket } from 'socket.io-client';
-import type { TrumpSuit, GameType, RoundPhase } from './game';
+import type { TrumpSuit, GameStatus, GameType } from './game';
 
 // ============================================================
 // Response Types
@@ -84,7 +84,7 @@ export interface RoomJoinedPayload {
   your_seat: number;
   is_admin: boolean;
   players: PlayerInfo[];
-  phase: string;
+  phase: GameStatus;
   current_round: number | null;
   current_bidder_id?: string | null;
   timestamp?: string;
@@ -270,7 +270,7 @@ export interface RoundCompletePayload {
 export interface SyncStatePayload {
   room_code: string;
   game_id: string;
-  phase: RoundPhase;
+  phase: GameStatus;
   players: PlayerInfo[];
   current_round: number | null;
   current_bidder: string | null;

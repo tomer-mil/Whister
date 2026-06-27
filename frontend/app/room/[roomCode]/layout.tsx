@@ -13,7 +13,7 @@ import { useRoomJoin } from '@/hooks/use-room-join';
 import { useRoom } from '@/hooks/use-room';
 import { useSocketEvent } from '@/hooks/use-socket-event';
 import { socketManager } from '@/lib/socket/manager';
-import type { GameStartingPayload } from '@/types/socket-events';
+import type { GameStartingPayload, RoomJoinedPayload } from '@/types/socket-events';
 
 type Props = {
   children: React.ReactNode;
@@ -27,6 +27,7 @@ export default function RoomLayout({ children, params }: Props) {
     <RoomLayoutClient
       params={params}
       onGameStarting={(gameId: string) => router.push(`/game/${gameId}/seating`)}
+      onGameResumed={(gameId: string) => router.push(`/game/${gameId}`)}
     >
       {children}
     </RoomLayoutClient>
@@ -37,10 +38,12 @@ function RoomLayoutClient({
   children,
   params,
   onGameStarting,
+  onGameResumed,
 }: {
   children: React.ReactNode;
   params: Promise<{ roomCode: string }>;
   onGameStarting: (gameId: string) => void;
+  onGameResumed: (gameId: string) => void;
 }) {
   const [roomCode, setRoomCode] = React.useState<string | null>(null);
 
@@ -84,6 +87,13 @@ function RoomLayoutClient({
   // Handle game started event - redirect to game page
   useSocketEvent('room:game_starting', (payload: GameStartingPayload) => {
     onGameStarting(payload.game_id);
+  });
+
+  useSocketEvent('room:joined', (payload: RoomJoinedPayload) => {
+    const activePhases = ['bidding_trump', 'frisch', 'bidding_contract', 'playing', 'round_complete'];
+    if (activePhases.includes(payload.phase)) {
+      onGameResumed(payload.game_id);
+    }
   });
 
   // Show nothing while loading room code

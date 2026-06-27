@@ -51,6 +51,8 @@ export const persistConfig = {
     user: state.user,
     accessToken: state.accessToken,
     refreshToken: state.refreshToken,
+    // Needed to rejoin and request authoritative state after a game-page reload.
+    roomCode: state.roomCode,
   }),
   onRehydrateStorage: () => (rehydratedState, error) => {
     // This callback is called AFTER rehydration completes
