@@ -1,4 +1,5 @@
 import { Browser, BrowserContext, Page } from '@playwright/test';
+type ContextOptions = NonNullable<Parameters<Browser['newContext']>[0]>;
 import { players, loadToken } from '../config/players';
 import {
   LobbyPage, SeatingPage, BiddingPage, PlayingPage, ScoresPage, TrumpSuit,
@@ -20,9 +21,11 @@ export class GameDriver {
 
   constructor(private readonly browser: Browser) {}
 
-  async setup(): Promise<void> {
+  async setup(contextOptions?: ContextOptions): Promise<void> {
     this.contexts = await Promise.all(
-      players.map((p) => this.browser.newContext({ storageState: p.storageStatePath })),
+      players.map((p) =>
+        this.browser.newContext({ storageState: p.storageStatePath, ...contextOptions }),
+      ),
     );
     this.pages = await Promise.all(this.contexts.map((c) => c.newPage()));
   }
