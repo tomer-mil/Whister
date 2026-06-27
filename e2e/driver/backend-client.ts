@@ -18,6 +18,14 @@ export class BackendClient {
     return this.parse(await res.json());
   }
 
+  async endGame(gameId: string, token: string): Promise<void> {
+    const res = await fetch(`${API_URL}/v1/games/${gameId}/end`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`end-game ${res.status}: ${await res.text()}`);
+  }
+
   /**
    * Map the real payload (RECON-confirmed shape) into ScoreTable.
    * Real shape: { game_id, room_code, rounds: [{ round_number, trump_suit, players: [{user_id, score, ...}] }],

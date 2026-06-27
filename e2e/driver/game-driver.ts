@@ -130,6 +130,11 @@ export class GameDriver {
     return this.backend.scoreTable(gameId, t);
   }
 
+  async backendEndGame(gameId: string, token?: string): Promise<void> {
+    const t = token ?? loadToken(players[0]);
+    return this.backend.endGame(gameId, t);
+  }
+
   async close(): Promise<void> {
     await Promise.all(this.contexts.map((c) => c.close()));
   }
