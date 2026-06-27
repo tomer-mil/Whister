@@ -129,6 +129,20 @@ export function useGame(options: UseGameOptions) {
     };
   }, [socket, updatePlayer, addRoundScore, setGameState, updatePlayerTricks, setRoundResults, setPhase]);
 
+  // Emit sync:request when the tab returns to visible so the server can push
+  // current state without waiting for the next server-initiated event.
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        emit('sync:request', { room_code: roomCode }).catch(() => {
+          // Best-effort; sync:state handler will update store if it arrives
+        });
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [emit, roomCode]);
+
   return {
     socket,
     emit,
