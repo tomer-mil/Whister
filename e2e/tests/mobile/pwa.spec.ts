@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { GameDriver } from '../../driver';
-import { IPHONE_SE } from '../../mobile';
+import { IPHONE_SE, throttleCPU } from '../../mobile';
+import { firstPageWith } from '../../helpers/wait';
 
 // P1: auth token survives context close + reopen (localStorage-based persistence)
 test('P1: JWT auth token persists across context close + reopen', async ({ browser }) => {
@@ -54,7 +55,27 @@ test('P2: /manifest.json is served with required PWA fields', async ({ browser }
   }
 });
 
-// Th1 deferred — CPU throttle; adds significant runtime; implement after suite is stable
-test.skip('Th1: bid counter responds correctly under 4× CPU throttle (deferred)', () => {});
+test('Th1: bid counter remains exact under 4x CPU throttle', async ({ browser }) => {
+  const driver = new GameDriver(browser);
+  await driver.setup(IPHONE_SE);
+  try {
+    await driver.createGame();
+    await driver.confirmSeating();
+    const activeIdx = await firstPageWith(driver.pages, 'bidding-pass');
+    const page = driver.pages[activeIdx];
+    const restoreCPU = await throttleCPU(page, 4);
+    try {
+      const initial = Number(await page.getByTestId('bidding-counter-value').innerText());
+      for (let tap = 0; tap < 5; tap += 1) {
+        await page.tap('[data-testid="bidding-counter-plus"]');
+      }
+      await expect(page.getByTestId('bidding-counter-value')).toHaveText(String(initial + 5));
+    } finally {
+      await restoreCPU();
+    }
+  } finally {
+    await driver.close();
+  }
+});
 // Th2 deferred — covered adequately by N4
 test.skip('Th2: socket connects under 3G throttle (deferred — covered by N4)', () => {});

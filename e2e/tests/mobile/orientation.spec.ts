@@ -59,8 +59,8 @@ test('O3: landscape→portrait rotation during playing phase; claim-trick button
     await driver.createGame();
     await driver.confirmSeating();
     // Advance to playing phase
-    await (driver as any).runTrumpAuction('clubs', 0);
-    await (driver as any).runContractBidding([5, 3, 3, 3]);
+    await driver.runTrumpAuction('clubs', 0);
+    await driver.runContractBidding([5, 3, 3, 3]);
     // Rotate to landscape, then back to portrait
     for (const page of driver.pages) await rotateLandscape(page);
     for (const page of driver.pages) await rotatePortrait(page);

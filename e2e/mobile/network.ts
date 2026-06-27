@@ -45,3 +45,17 @@ export async function throttle3G(page: Page): Promise<() => Promise<void>> {
     await session.detach();
   };
 }
+
+/** Apply a reversible CPU slowdown through the page's CDP target. */
+export async function throttleCPU(
+  page: Page,
+  rate = 4,
+): Promise<() => Promise<void>> {
+  if (rate < 1) throw new Error('CPU throttle rate must be at least 1');
+  const session = await page.context().newCDPSession(page);
+  await session.send('Emulation.setCPUThrottlingRate', { rate });
+  return async () => {
+    await session.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+    await session.detach();
+  };
+}

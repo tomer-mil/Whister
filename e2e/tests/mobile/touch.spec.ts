@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { GameDriver } from '../../driver';
-import { IPHONE_SE, IPHONE_14, assertTouchTargets } from '../../mobile';
+import {
+  IPHONE_SE,
+  IPHONE_14,
+  assertTouchTargets,
+  longPress,
+  swipe,
+} from '../../mobile';
 import { firstPageWith } from '../../helpers/wait';
 
 // T1: touch (tap) input drives a trump bid
@@ -90,8 +96,8 @@ test('T4: two rapid taps on claim-trick count as one trick claim', async ({ brow
     await driver.createGame();
     await driver.confirmSeating();
     // Drive through bidding to reach playing phase
-    await (driver as any).runTrumpAuction('clubs', 0);
-    await (driver as any).runContractBidding([5, 3, 3, 3]);
+    await driver.runTrumpAuction('clubs', 0);
+    await driver.runContractBidding([5, 3, 3, 3]);
     // Now in playing phase — P0 claims twice rapidly
     const page = driver.pages[0];
     await expect(page.getByTestId('playing-claim-trick')).toBeVisible({ timeout: 15_000 });
@@ -109,6 +115,60 @@ test('T4: two rapid taps on claim-trick count as one trick claim', async ({ brow
     // Finding: if count > 1, the backend accepted a duplicate — SG-6 C3 not yet fixed.
     // Correct behavior: exactly 1 trick claimed despite 2 rapid taps.
     expect(count).toBe(1);
+  } finally {
+    await driver.close();
+  }
+});
+
+test('T5: long-press changes the bid counter once without submitting a bid', async ({ browser }) => {
+  const driver = new GameDriver(browser);
+  await driver.setup(IPHONE_SE);
+  try {
+    await driver.createGame();
+    await driver.confirmSeating();
+    const activeIdx = await firstPageWith(driver.pages, 'bidding-pass');
+    const page = driver.pages[activeIdx];
+    const initial = Number(await page.getByTestId('bidding-counter-value').innerText());
+
+    await longPress(page, '[data-testid="bidding-counter-plus"]');
+
+    await expect(page.getByTestId('bidding-counter-value')).toHaveText(String(initial + 1));
+    await expect(page.getByTestId('bidding-pass')).toBeVisible();
+    expect(await firstPageWith(driver.pages, 'bidding-pass')).toBe(activeIdx);
+  } finally {
+    await driver.close();
+  }
+});
+
+test('T6: touch swipe scrolls scores without changing authoritative scores', async ({ browser }) => {
+  test.setTimeout(180_000);
+  const driver = new GameDriver(browser);
+  await driver.setup(IPHONE_SE);
+  try {
+    const { gameId } = await driver.createGame();
+    await driver.confirmSeating();
+    await driver.playRound({
+      trump: 'clubs',
+      trumpWinner: 0,
+      contracts: [5, 3, 3, 3],
+      tricks: [5, 3, 3, 2],
+    });
+    const page = driver.pages[0];
+    await page.setViewportSize({ width: 375, height: 350 });
+    await expect.poll(
+      () => page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight),
+    ).toBe(true);
+    const before = await page.evaluate(() => window.scrollY);
+    const uiScore = await driver.scores(0).roundScore(1, 0);
+    const backendBefore = await driver.backendScores(gameId);
+
+    await swipe(page, { x: 190, y: 320 }, { x: 190, y: 60 });
+
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
+    expect(await driver.scores(0).roundScore(1, 0)).toBe(uiScore);
+    const backendAfter = await driver.backendScores(gameId);
+    expect(backendAfter.rounds[0].scores[0]).toBe(backendBefore.rounds[0].scores[0]);
+    expect(uiScore).toBe(backendAfter.rounds[0].scores[0]);
   } finally {
     await driver.close();
   }

@@ -118,8 +118,8 @@ test('S1: app-switch away during trick claiming; trick counts update on return',
   try {
     await driver.createGame();
     await driver.confirmSeating();
-    await (driver as any).runTrumpAuction('clubs', 0);
-    await (driver as any).runContractBidding([5, 3, 3, 3]);
+    await driver.runTrumpAuction('clubs', 0);
+    await driver.runContractBidding([5, 3, 3, 3]);
     // Background P0 (observer)
     await background(driver.pages[0]);
     // P1, P2, P3 each claim one trick
