@@ -27,36 +27,24 @@ test('R1: tab close mid-bidding; reopen sees live game state', async ({ browser 
   }
 });
 
-// R2: P3 closes tab on their own bid turn; game unblocks or records finding
-test('R2: tab close on own bid turn; other players can determine if game unblocks', async ({ browser }) => {
-  test.setTimeout(60_000);
+// R2: whichever player owns the current turn closes their tab.
+test('R2: tab close on own bid turn auto-advances without deadlocking the table', async ({ browser }) => {
+  test.setTimeout(120_000);
   const driver = new GameDriver(browser);
   await driver.setup(IPHONE_SE);
   try {
     await driver.createGame();
     await driver.confirmSeating();
-    // Advance until it is P3's turn
-    let p3Turn = false;
-    for (let g = 0; g < 8; g++) {
-      const activeIdx = await firstPageWith(driver.pages, 'bidding-pass', 20_000).catch(() => -1);
-      if (activeIdx === -1) break;
-      if (activeIdx === 3) { p3Turn = true; break; }
-      await driver.bidding(activeIdx).pass();
-    }
-    if (!p3Turn) {
-      // P3 never got the turn in this auction order — skip gracefully
-      test.skip();
-      return;
-    }
-    // P3's turn — close P3's tab
-    await driver.pages[3].close();
+    const activeIdx = await firstPageWith(driver.pages, 'bidding-pass');
+    await driver.pages[activeIdx].close();
     // Finding F3: if SG-6 D4 auto-pass is implemented, the game should advance automatically.
     // If not, the game blocks. Check by polling whether ANY other player gets bidding controls.
     let advanced = false;
     try {
       await expect.poll(
         async () => {
-          for (let i = 0; i < 3; i++) {
+          for (let i = 0; i < driver.pages.length; i += 1) {
+            if (i === activeIdx) continue;
             if (await driver.pages[i].getByTestId('bidding-pass').isVisible()) {
               advanced = true;
               return true;
@@ -77,7 +65,7 @@ test('R2: tab close on own bid turn; other players can determine if game unblock
       // Game is stuck — this confirms finding F3 (no auto-pass on disconnect).
       // Fail with a descriptive message so it shows up as a known finding, not a mystery.
       throw new Error(
-        'R2 FINDING F3: game blocked after P3 disconnected on their bid turn. ' +
+        'R2 FINDING F3: game blocked after the active bidder disconnected. ' +
         'SG-6 D4 (auto-pass on disconnect) is not yet implemented.',
       );
     }

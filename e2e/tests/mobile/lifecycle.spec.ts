@@ -161,3 +161,38 @@ test('S2: all 4 players background briefly then foreground; state consistent', a
     await driver.close();
   }
 });
+
+test('S3: foreground requests authoritative state synchronization', async ({ browser }) => {
+  const driver = new GameDriver(browser);
+  await driver.setup(IPHONE_SE);
+  try {
+    await driver.createGame();
+    await driver.confirmSeating();
+    const page = driver.pages[3];
+    await page.evaluate(() => {
+      const target = window as Window & {
+        socketManager?: { getSocket(): { onAnyOutgoing(listener: (event: string) => void): void } | null };
+        __syncRequestCount?: number;
+      };
+      target.__syncRequestCount = 0;
+      target.socketManager?.getSocket()?.onAnyOutgoing((event) => {
+        if (event === 'sync:request') target.__syncRequestCount = (target.__syncRequestCount ?? 0) + 1;
+      });
+    });
+
+    await background(page);
+    await foreground(page);
+
+    await expect.poll(
+      () => page.evaluate(
+        () => (window as Window & { __syncRequestCount?: number }).__syncRequestCount ?? 0,
+      ),
+      {
+        timeout: 5_000,
+        message: 'foreground did not emit sync:request; state may remain stale after suspension',
+      },
+    ).toBeGreaterThan(0);
+  } finally {
+    await driver.close();
+  }
+});

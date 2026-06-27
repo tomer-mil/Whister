@@ -87,3 +87,43 @@ test('V4: bidding controls are not clipped below viewport on both phone profiles
     }
   }
 });
+
+test('V5: phone contexts expose touch input, mobile width, and expected DPR', async ({ browser }) => {
+  for (const [label, profile, expected] of [
+    ['iPhone SE', IPHONE_SE, { width: 375, dpr: 2 }],
+    ['iPhone 14', IPHONE_14, { width: 390, dpr: 3 }],
+  ] as const) {
+    const driver = new GameDriver(browser);
+    await driver.setup(profile);
+    try {
+      await driver.pages[0].goto('/');
+      const actual = await driver.pages[0].evaluate(() => ({
+        dpr: window.devicePixelRatio,
+        innerWidth: window.innerWidth,
+        maxTouchPoints: navigator.maxTouchPoints,
+        coarsePointer: window.matchMedia('(pointer: coarse)').matches,
+      }));
+      expect(actual.innerWidth, `${label} CSS viewport width`).toBe(expected.width);
+      expect(actual.dpr, `${label} devicePixelRatio`).toBe(expected.dpr);
+      expect(actual.maxTouchPoints, `${label} touch points`).toBeGreaterThan(0);
+      expect(actual.coarsePointer, `${label} coarse touch pointer`).toBe(true);
+    } finally {
+      await driver.close();
+    }
+  }
+});
+
+test('V6: gameplay wires viewport-fit cover and bottom safe-area padding', async ({ browser }) => {
+  const driver = new GameDriver(browser);
+  await driver.setup(IPHONE_14);
+  try {
+    await driver.createGame();
+    await driver.confirmSeating();
+    const page = driver.pages[0];
+    const viewport = await page.locator('meta[name="viewport"]').getAttribute('content');
+    expect(viewport).toContain('viewport-fit=cover');
+    await expect(page.locator('main.pb-safe-bottom')).toBeVisible();
+  } finally {
+    await driver.close();
+  }
+});

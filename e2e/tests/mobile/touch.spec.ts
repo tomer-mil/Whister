@@ -190,12 +190,17 @@ test('K1: room join form accessible with simulated keyboard-open viewport (375×
     await nameInput.fill('P1Mobile');
     const joinInput = driver.pages[1].getByPlaceholder('Room Code');
     await expect(joinInput).toBeVisible({ timeout: 10_000 });
+    await joinInput.focus();
+    await expect(joinInput).toBeFocused();
     await joinInput.fill(roomCode);
     const submitBtn = driver.pages[1].getByRole('button', { name: /join/i });
     await expect(submitBtn).toBeVisible({ timeout: 10_000 });
+    await submitBtn.scrollIntoViewIfNeeded();
     // Finding: if submit button is not visible, it's below the fold when keyboard is open
     const box = await submitBtn.boundingBox();
     expect(box, 'Submit button not found at 375x350 (keyboard-open simulation)').not.toBeNull();
+    expect(box!.y + box!.height, 'Submit button is clipped by keyboard-height viewport')
+      .toBeLessThanOrEqual(350);
     await submitBtn.tap();
     await expect(driver.pages[1]).toHaveURL(new RegExp(`/room/${roomCode}`), { timeout: 15_000 });
   } finally {
@@ -213,6 +218,8 @@ test('K2: display name input value retained after blur', async ({ browser }) => 
     await expect(nameInput).toBeVisible({ timeout: 10_000 });
     await nameInput.fill('Alice');
     await nameInput.blur();
+    await driver.pages[0].setViewportSize({ width: 375, height: 350 });
+    await driver.pages[0].setViewportSize({ width: 375, height: 667 });
     await expect(nameInput).toHaveValue('Alice');
   } finally {
     await driver.close();
@@ -310,8 +317,22 @@ test('X3: room code paste (fill) correctly joins the room', async ({ browser }) 
   }
 });
 
-// G1 deferred — back navigation guard not yet implemented
-test.skip('G1: browser back from game page (deferred — no navigation guard)', () => {
-  // Deferred: implement when the app adds a back-navigation guard.
-  // Expected behavior: player is prompted before leaving an active game.
+test('G1: browser back then forward recovers the active mobile game', async ({ browser }) => {
+  const driver = new GameDriver(browser);
+  await driver.setup(IPHONE_SE);
+  try {
+    await driver.createGame();
+    await driver.confirmSeating();
+    const activeBefore = await firstPageWith(driver.pages, 'bidding-pass');
+    const page = driver.pages[activeBefore];
+
+    await page.goBack({ waitUntil: 'domcontentloaded' });
+    await page.goForward({ waitUntil: 'domcontentloaded' });
+
+    await expect(page).toHaveURL(/\/game\//);
+    await expect(page.getByTestId('connection-status')).toContainText('Connected');
+    await expect(page.getByTestId('bidding-pass')).toBeVisible({ timeout: 20_000 });
+  } finally {
+    await driver.close();
+  }
 });
