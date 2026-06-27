@@ -212,7 +212,7 @@ async def on_game_sync(sid, data):
     await sio.emit('game:state', game.to_dict(), to=sid)
 ```
 
-**Verifies:** `B3: offline+background simulating long background; socket reconnects on return` (currently passing; state freshness will be improved), `N1`, `S1`, `S2`
+**Verifies:** `S3: P3 trick counts accurate after going offline mid-round and reconnecting` (`e2e/tests/mobile/lifecycle.spec.ts`) — currently red. Also improves `B3`, `N1`, `S1`, `S2` (currently passing via connection indicator only).
 
 ---
 
@@ -283,7 +283,7 @@ const handleEndGame = async () => {
 
 **Alternative (cleaner):** Add `winner_id` to `GET /score-table` once `game.status === 'FINISHED'`, so no extra fetch is needed.
 
-**Verifies:** No current test covers this (winner display is unimplemented). Once built, add a test in `e2e/tests/` that ends a game and asserts `scores-winner` is visible.
+**Verifies:** `W1: winner is displayed prominently on scores page after game ends` (`e2e/tests/mobile/endgame.spec.ts`) — currently red.
 
 ---
 
@@ -338,6 +338,8 @@ Once all fixes are implemented, these currently-red tests should turn green:
 | `N3` score-table error surfaced | A6 (toast system) |
 | `N4` full round under 3G throttle | Dependent on Next.js bundle optimisation (separate concern) |
 | `R2` game unblocks after disconnect | F3 (auto-pass) |
+| `W1` winner displayed prominently after game ends | A3 (winner display feature) |
+| `S3` P3 trick counts accurate after reconnect | F1+F6 (game:sync on reconnect/foreground) |
 
 And these currently-passing tests should continue to pass (regression guard):
 
