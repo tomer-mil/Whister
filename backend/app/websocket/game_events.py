@@ -29,11 +29,15 @@ from app.websocket.schemas import (
     ContractsSetPayload,
     ErrorPayload,
     FrischStartedPayload,
+    GamePhase,
+    PlayerInfo,
     RoundClaimTrickPayload,
     RoundCompletePayload,
     RoundTrickWonPayload,
     RoundUndoTrickPayload,
     ServerEvents,
+    SyncRequestPayload,
+    SyncStatePayload,
     WSErrorCode,
     YourTurnPayload,
 )
@@ -1102,3 +1106,96 @@ async def complete_round(
 
     except Exception as e:
         logger.exception("Error completing round: %s", e)
+
+
+def register_sync_handlers(
+    sio: "socketio.AsyncServer",  # type: ignore
+    room_manager: RoomManager,
+    connection_contexts: dict[str, "ConnectionContext"],
+) -> None:
+    """Register sync:request → sync:state handler."""
+    import json as _json  # local import to avoid circular at module level
+
+    @sio.on(ClientEvents.SYNC_REQUEST)  # type: ignore
+    async def handle_sync_request(sid: str, data: dict[str, Any]) -> dict[str, Any]:
+        """Handle sync:request — emit current game state to the requesting socket."""
+        try:
+            ctx = connection_contexts.get(sid)
+            if not ctx or not ctx.is_authenticated:
+                return {"success": False, "error": "not authenticated"}
+
+            try:
+                payload = SyncRequestPayload(**data)
+            except Exception as exc:
+                return {"success": False, "error": str(exc)}
+
+            room_code = payload.room_code.upper()
+
+            # --- gather room state from Redis ---
+            room_key = f"room:{room_code}"
+            room_data = await room_manager.redis.hgetall(room_key)
+            if not room_data:
+                return {"success": False, "error": "room not found"}
+
+            game_id = room_data.get("game_id", "")
+            phase_str = room_data.get("status", "waiting")
+            current_round_str = room_data.get("current_round")
+            current_round = int(current_round_str) if current_round_str else None
+
+            try:
+                phase = GamePhase(phase_str)
+            except ValueError:
+                phase = GamePhase.WAITING
+
+            # --- players ---
+            raw_players = await room_manager._get_room_players(room_code)
+            players = [
+                PlayerInfo(
+                    user_id=p.user_id,
+                    display_name=p.display_name,
+                    seat_position=p.seat_position,
+                    is_connected=p.is_connected,
+                    is_admin=p.is_admin,
+                )
+                for p in raw_players
+            ]
+
+            # --- round-level state (bidding / playing) ---
+            additional_data: dict[str, Any] = {}
+            current_bidder: str | None = None
+
+            if phase in (GamePhase.BIDDING_TRUMP, GamePhase.FRISCH, GamePhase.BIDDING_CONTRACT, GamePhase.PLAYING):
+                round_data = await room_manager.get_room_round_state(room_code)
+                current_bidder = round_data.get("current_bidder_id")
+
+                if phase == GamePhase.BIDDING_TRUMP:
+                    additional_data["minimum_bid"] = int(round_data.get("minimum_bid", 5))
+                    highest_bid_json = round_data.get("highest_bid")
+                    if highest_bid_json:
+                        additional_data["highest_bid"] = _json.loads(highest_bid_json)
+
+                elif phase == GamePhase.PLAYING:
+                    tricks_key = f"room:{room_code}:tricks"
+                    tricks_raw = await room_manager.redis.hgetall(tricks_key)
+                    additional_data["tricks"] = {uid: int(v) for uid, v in tricks_raw.items()}
+                    additional_data["total_tricks_played"] = int(
+                        round_data.get("total_tricks_played", 0)
+                    )
+
+            sync_payload = SyncStatePayload(
+                room_code=room_code,
+                game_id=game_id,
+                phase=phase,
+                players=players,
+                current_round=current_round,
+                current_bidder=current_bidder,
+                additional_data=additional_data,
+            )
+
+            await sio.emit(ServerEvents.SYNC_STATE, sync_payload.to_dict(), to=sid)
+            logger.info("Emitted sync:state to %s for room %s", sid, room_code)
+            return {"success": True}
+
+        except Exception as exc:
+            logger.exception("Error in handle_sync_request: %s", exc)
+            return {"success": False, "error": "internal error"}
