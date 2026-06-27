@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { readServicesState } from './helpers/services';
@@ -24,7 +24,18 @@ export default async function globalTeardown() {
 
   if (state.startedDocker) {
     try {
-      execSync('docker compose down', { cwd: ROOT_DIR, stdio: 'pipe' });
+      execFileSync(
+        'docker',
+        [
+          'compose',
+          '--project-name',
+          'whister',
+          '--file',
+          path.resolve(ROOT_DIR, 'docker-compose.yml'),
+          'down',
+        ],
+        { cwd: ROOT_DIR, stdio: 'pipe' },
+      );
       console.log('[e2e] docker compose down.');
     } catch {
       console.warn('[e2e] docker compose down failed or was unnecessary.');
