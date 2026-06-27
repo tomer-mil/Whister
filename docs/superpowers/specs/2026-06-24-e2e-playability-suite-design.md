@@ -165,9 +165,10 @@ player's exact score against the rules table. Over/under is forced by the contra
 | Made contract | bid 3, win 3 | `3²+10 = +19` |
 | Failed contract | bid 5, win 3 | `-10×2 = -20` |
 | Zero made, **under** | bid 0, win 0, Σcontracts<13 | `+50` |
-| Zero made, **over** | bid 0, win 0, Σcontracts>13 | `+25` |
-| Failed zero, 1 trick | bid 0, win 1 | `-50` |
-| Failed zero, 2+ tricks | bid 0, win 3 | `-50+10×2 = -30` |
+| Zero made, **over** | bid 0, win 0, Σcontracts>13 | `0²+10 = +10` |
+| Failed zero, **under**, 1 trick | bid 0, win 1, Σcontracts<13 | `-50` |
+| Failed zero, **under**, 2+ tricks | bid 0, win 3, Σcontracts<13 | `-50+10×2 = -30` |
+| Failed zero, **over** | bid 0, win 1, Σcontracts>13 | `-10×1 = -10` |
 
 The under-game / zero rows are exactly what Issue 4 breaks — this spec will be **red until the
 backend scoring bug is fixed**, by design.

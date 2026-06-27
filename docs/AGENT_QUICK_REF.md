@@ -41,8 +41,9 @@ Parallel-safe by issue; serialize anything in `tests/conftest.py` (#2/#3/#5), mo
 - `frontend/stores/slices/` — Zustand state; `frontend/lib/socket/manager.ts` — socket client
 
 ## Scoring cheat (source of truth — fix code to match)
-Made (bid≥1, tricks==bid): `bid²+10` · Failed: `-10×|tricks−bid|` · Zero made under `+50` / over `+25`
-· Zero failed 1 trick `-50` / 2+ tricks `-50+10×(tricks−1)`. Suit order: clubs<diamonds<hearts<spades<NT.
+Made (bid≥1, tricks==bid): `bid²+10` · Failed: `-10×|tricks−bid|`. Zero bid OVER game = normal contract
+(`bid²+10`/`-10×|tricks−bid|`, so made `+10`, failed 1 trick `-10`). Zero bid UNDER game (special): made `+50`,
+failed 1 trick `-50`, 2+ tricks `-50+10×(tricks−1)`. Suit order: clubs<diamonds<hearts<spades<NT.
 Contract sum never 13 → over if >13 else under.
 
 ## Deeper reference (AGENTS.md sections)

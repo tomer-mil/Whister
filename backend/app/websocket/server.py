@@ -6,7 +6,7 @@ import socketio  # type: ignore
 
 from app.config import get_settings
 from app.core.exceptions import AppException
-from app.core.security import decode_token
+from app.core.security import decode_token, verify_token_type
 from app.websocket.connection_context import ConnectionContext
 from app.websocket.room_manager import RoomManager
 from app.websocket.schemas import (
@@ -119,9 +119,12 @@ def register_socketio_handlers(  # noqa: C901
                 logger.warning("Connection attempt without token from %s", sid)
                 return False
 
-            # Verify token
+            # Verify token — must be a valid access token (not a refresh token)
             try:
                 payload = decode_token(token)
+                if not verify_token_type(payload, "access"):
+                    logger.warning("WS connect rejected: non-access token type for %s", sid)
+                    return False
                 user_id = payload.get("sub")
                 if not user_id:
                     logger.warning("Invalid token payload for %s", sid)

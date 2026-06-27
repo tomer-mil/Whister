@@ -16,8 +16,9 @@ interface ServicesState {
 
 /**
  * CI-friendly bootstrap.
- * - Checks backend health (GET /health/ready).  If unhealthy → docker compose up.
- *   If docker compose fails but backend is already reachable (port conflict), logs a warning.
+ * - Checks backend health (GET /health/ready) and verifies the service is Whister.
+ *   If unhealthy → docker compose up.
+ *   If a port is occupied by a non-Whister service, FAIL FAST with port + PID.
  * - Checks frontend reachability.  If unreachable → npm run build && npm run start (production).
  * - Records what was started so globalTeardown can reverse it.
  */
@@ -25,24 +26,43 @@ export async function ensureServicesRunning(): Promise<void> {
   const state: ServicesState = { startedDocker: false, startedFrontend: false };
 
   // ── Backend ─────────────────────────────────────────────────────
-  if (!(await isReachable(HEALTH_URL))) {
+  const backendPort = extractPort(API_URL);
+  const backendHealthy = await isWhisterHealthy(HEALTH_URL);
+
+  if (!backendHealthy) {
+    // Port may be occupied by a non-Whister service — check before starting Docker
+    if (await isReachable(HEALTH_URL)) {
+      const pid = getPidForPort(backendPort);
+      throw new Error(
+        `[e2e] ABORT: Port ${backendPort} is reachable but the service is NOT Whister ` +
+        `(no "service":"whister" in /health/ready response). ` +
+        (pid ? `Occupied by PID ${pid}. ` : '') +
+        'Stop the conflicting process before running Whister e2e tests.'
+      );
+    }
+
     console.log('[e2e] Backend not healthy – running docker compose up -d ...');
     try {
       execSync('docker compose up -d', { cwd: ROOT_DIR, stdio: 'pipe' });
       state.startedDocker = true;
     } catch (err) {
-      // Port conflict - check if backend is already reachable from env
-      if (!(await isReachable(HEALTH_URL))) {
+      // Docker failed — check if Whister is already reachable (race: started between checks)
+      if (!(await isWhisterHealthy(HEALTH_URL))) {
+        const pid = getPidForPort(backendPort);
         throw new Error(
-          '[e2e] Backend not reachable and docker compose failed (port conflict?). ' +
-          'Stop conflicting services or set API_URL to a running Whister backend.\n' +
-          String(err)
+          `[e2e] Backend not reachable and docker compose failed. ` +
+          (pid
+            ? `Port ${backendPort} is occupied by PID ${pid} (not Whister). Stop it first.`
+            : `Port ${backendPort} is not occupied — check Docker logs.`) +
+          '\n' + String(err)
         );
       }
-      console.warn('[e2e] docker compose failed but backend is reachable — using existing stack');
+      console.warn('[e2e] docker compose failed but Whister backend is reachable — using existing stack');
     }
     await waitFor(HEALTH_URL, 120_000);
     console.log('[e2e] Backend healthy.');
+  } else {
+    console.log('[e2e] Backend already healthy (Whister confirmed on port ' + backendPort + ').');
   }
 
   // ── Frontend ────────────────────────────────────────────────────
@@ -61,6 +81,9 @@ export async function ensureServicesRunning(): Promise<void> {
     state.frontendPid = proc.pid;
     await waitFor(BASE_URL, 60_000);
     console.log('[e2e] Frontend reachable.');
+  } else {
+    const frontendPort = extractPort(BASE_URL);
+    console.log('[e2e] Frontend already reachable on port ' + frontendPort + '.');
   }
 
   fs.writeFileSync(STATE_FILE, JSON.stringify(state));
@@ -77,6 +100,21 @@ export function readServicesState(): ServicesState | null {
 
 // ── internal ──────────────────────────────────────────────────────────────
 
+/**
+ * Check that the URL is reachable AND responds with "service":"whister".
+ * This ensures we never silently test against cookoo or another service on the same port.
+ */
+async function isWhisterHealthy(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) return false;
+    const body = await res.json();
+    return body?.service === 'whister';
+  } catch {
+    return false;
+  }
+}
+
 async function isReachable(url: string): Promise<boolean> {
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
@@ -89,8 +127,32 @@ async function isReachable(url: string): Promise<boolean> {
 async function waitFor(url: string, timeoutMs: number): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (await isReachable(url)) return;
+    if (await isWhisterHealthy(url)) return;
     await new Promise((r) => setTimeout(r, 1000));
   }
-  throw new Error(`[e2e] ${url} did not become reachable within ${timeoutMs / 1000}s`);
+  throw new Error(`[e2e] ${url} did not become Whister-healthy within ${timeoutMs / 1000}s`);
+}
+
+/** Extract the numeric port from a URL string, defaulting to 80/443. */
+function extractPort(url: string): number {
+  try {
+    const u = new URL(url);
+    if (u.port) return parseInt(u.port, 10);
+    return u.protocol === 'https:' ? 443 : 80;
+  } catch {
+    return 0;
+  }
+}
+
+/** Return the PID listening on a given host port, or null if not determinable. */
+function getPidForPort(port: number): string | null {
+  if (!port) return null;
+  try {
+    // ss -tlnp output: "LISTEN 0 ... *:8001 ... users:(("uvicorn",pid=1234,fd=...))"
+    const out = execSync(`ss -tlnp 2>/dev/null | grep ":${port} "`, { encoding: 'utf-8' });
+    const m = out.match(/pid=(\d+)/);
+    return m ? m[1] : null;
+  } catch {
+    return null;
+  }
 }

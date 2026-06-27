@@ -52,9 +52,9 @@ The **Whist Score Keeper Backend** is a real-time scoring application for the Wh
 **Scoring Algorithm:**
 - Made contract (bid ≥ 1): `bid² + 10`
 - Failed contract: `-10 × |tricks_won - bid|`
+- Zero bid, over game: scored like any contract — made (won 0) `0² + 10 = +10`, failed `-10 × tricks`
 - Zero bid success (under): +50
-- Zero bid success (over): +25
-- Zero bid failure: `-50` or `-50 + 10×(tricks-1)`
+- Zero bid failure (under): `-50` (1 trick) or `-50 + 10×(tricks-1)` (2+ tricks)
 - Game type determination: sum > 13 (over) vs sum < 13 (under)
 
 ### Task 9: Groups & Analytics ✅

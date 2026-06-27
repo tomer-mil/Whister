@@ -172,7 +172,7 @@ class TestGroupPermissions:
         )
 
         other_user = uuid4()
-        with pytest.raises(ValueError, match="only group owner"):
+        with pytest.raises(ValueError, match="[Oo]nly group owner"):
             await group_service.add_member(
                 group_id=group_id,
                 user_id=uuid4(),

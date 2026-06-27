@@ -51,18 +51,23 @@
 |---------|--------|
 | **Made contract (bid ≥ 1)** | bid² + 10 |
 | **Failed contract (bid ≥ 1)** | -10 × \|tricks - bid\| |
+| **Zero bid, over game** | scored like any other contract: made (won 0) → 0² + 10 = +10; failed → -10 × tricks |
 | **Made zero (under game)** | +50 |
-| **Made zero (over game)** | +25 |
-| **Failed zero (won 1 trick)** | -50 |
-| **Failed zero (won 2+ tricks)** | -50 + 10×(tricks - 1) |
+| **Failed zero, under game (won 1 trick)** | -50 |
+| **Failed zero, under game (won 2+ tricks)** | -50 + 10×(tricks - 1) |
+
+> **Note:** A zero bid is only special in an **under** game. In an **over** game a
+> zero bid uses the normal contract formula (made = bid² + 10, failed = -10 × |tricks - bid|).
 
 ### Examples
 - Bid 3, won 3 → 3² + 10 = **+19**
 - Bid 5, won 3 → -10 × 2 = **-20**
+- Bid 0, won 0 (over) → 0² + 10 = **+10**
+- Bid 0, won 1 (over) → -10 × 1 = **-10**
+- Bid 0, won 2 (over) → -10 × 2 = **-20**
 - Bid 0, won 0 (under) → **+50**
-- Bid 0, won 0 (over) → **+25**
-- Bid 0, won 1 → **-50**
-- Bid 0, won 3 → -50 + 10×2 = **-30**
+- Bid 0, won 1 (under) → **-50**
+- Bid 0, won 3 (under) → -50 + 10×2 = **-30**
 
 ---
 

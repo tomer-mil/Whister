@@ -15,14 +15,20 @@ const cases: Case[] = [
     round: { trump: 'clubs', trumpWinner: 0, contracts: [5, 3, 3, 3], tricks: [4, 3, 3, 3] } },
   { name: 'failed contract (bid 5, win 3)', seat: 0, expected: -20,
     round: { trump: 'clubs', trumpWinner: 0, contracts: [5, 3, 3, 3], tricks: [3, 4, 3, 3] } },
+  // Under-game zero bid (special scoring).
   { name: 'zero made, under (+50)', seat: 3, expected: 50,
     round: { trump: 'clubs', trumpWinner: 0, contracts: [5, 3, 2, 0], tricks: [6, 4, 3, 0] } },
-  { name: 'zero made, over (+25)', seat: 3, expected: 25,
-    round: { trump: 'clubs', trumpWinner: 0, contracts: [6, 5, 3, 0], tricks: [5, 5, 3, 0] } },
-  { name: 'failed zero, 1 trick (-50)', seat: 3, expected: -50,
+  { name: 'failed zero, under, 1 trick (-50)', seat: 3, expected: -50,
     round: { trump: 'clubs', trumpWinner: 0, contracts: [5, 4, 3, 0], tricks: [4, 4, 4, 1] } },
-  { name: 'failed zero, 3 tricks (-30)', seat: 3, expected: -30,
+  { name: 'failed zero, under, 3 tricks (-30)', seat: 3, expected: -30,
     round: { trump: 'clubs', trumpWinner: 0, contracts: [5, 3, 2, 0], tricks: [4, 3, 3, 3] } },
+  // Over-game zero bid: scored like any other contract (made → 0²+10 = +10; failed → -10×tricks).
+  { name: 'zero made, over (+10)', seat: 3, expected: 10,
+    round: { trump: 'clubs', trumpWinner: 0, contracts: [6, 5, 3, 0], tricks: [5, 5, 3, 0] } },
+  { name: 'failed zero, over, 1 trick (-10)', seat: 3, expected: -10,
+    round: { trump: 'clubs', trumpWinner: 0, contracts: [6, 5, 3, 0], tricks: [5, 4, 3, 1] } },
+  { name: 'failed zero, over, 2 tricks (-20)', seat: 3, expected: -20,
+    round: { trump: 'clubs', trumpWinner: 0, contracts: [6, 5, 3, 0], tricks: [5, 3, 3, 2] } },
 ];
 
 for (const c of cases) {

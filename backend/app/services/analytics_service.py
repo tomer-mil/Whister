@@ -1,5 +1,5 @@
 """Analytics service for calculating player and group statistics."""
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -123,7 +123,7 @@ class AnalyticsService:
             best_streak=stats.best_streak,
             highest_round_score=stats.highest_round_score,
             lowest_round_score=stats.lowest_score if stats.lowest_score is not None else 0,
-            updated_at=stats.updated_at or datetime.now(UTC),
+            updated_at=stats.updated_at or datetime.now(timezone.utc),
         )
 
     async def get_group_leaderboard(

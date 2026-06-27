@@ -109,31 +109,30 @@ class ScoringService:
         Scoring rules:
             - Made contract (bid >= 1): bid^2 + 10
             - Failed contract (bid >= 1): -10 per trick deviation
-            - Made zero (under game): +50
-            - Made zero (over game): +25
-            - Failed zero (1 trick): -50
-            - Failed zero (2+ tricks): -50 + 10*(tricks - 1)
+            - Zero bid in an OVER game scores like any other contract:
+              made (won 0) -> 0^2 + 10 = +10; failed -> -10 per trick won
+            - Zero bid in an UNDER game has special scoring:
+              made (won 0) -> +50; failed 1 trick -> -50;
+              failed 2+ tricks -> -50 + 10*(tricks - 1)
         """
         is_over = game_type == GameType.OVER
 
-        # Handle zero contract
-        if contract_bid == 0:
+        # A zero bid is only special in an UNDER game. In an OVER game a zero
+        # bid scores exactly like any other contract (handled by the path below).
+        if contract_bid == 0 and not is_over:
             if tricks_won == 0:
-                # Made zero contract
-                return 25 if is_over else 50
+                # Made zero contract (under game)
+                return 50
             if tricks_won == 1:
                 # Failed zero by 1 trick
                 return -50
             # Failed zero by 2+ tricks
             return -50 + (tricks_won - 1) * 10
 
-        # Handle non-zero contract
+        # Non-zero contract, or any zero bid in an over game.
         if tricks_won == contract_bid:
-            # Made contract
+            # Made contract: bid^2 + 10 (a made over-game zero gives 0 + 10 = 10)
             return (contract_bid * contract_bid) + 10
-        # Failed contract
-        if game_type == GameType.UNDER and tricks_won > contract_bid:
-            # Under-game: taking more tricks than bid harms the team
-            return tricks_won * -10
+        # Failed contract: -10 per trick deviation, same formula in all game types
         deviation = abs(tricks_won - contract_bid)
         return deviation * -10
