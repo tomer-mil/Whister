@@ -26,7 +26,7 @@ for final iOS Safari/Android Chrome physical-device acceptance. The distinction 
 | Criterion | Why it matters on mobile | Emulation mechanism | Verifying test (path::name) | Status (✅ verified / ⚠️ partial / ❌ gap) | Evidence/notes |
 |---|---|---|---|---|---|
 | Whister-only test target | A green run against another app is meaningless and could mutate a live service. | Pure URL guards plus `/api/v1` and manifest identity checks. | `e2e/tests/bootstrap.spec.ts::bootstrap accepts only Whister host ports`; `::bootstrap recognizes Whister backend identity and rejects another app`; `::bootstrap recognizes Whister frontend manifest and rejects another app` | ✅ verified | Rejects backend `8000`, frontend `3000`, remote hosts, and non-Whister identity before startup. |
-| Tap input | Primary phone interaction must drive real game actions. | `hasTouch`/`isMobile` context and `page.tap()`. | `e2e/tests/mobile/touch.spec.ts::T1: trump bid placed via tap (not mouse click)` | ✅ verified | A tap changes the bid and advances the auction. |
+| Tap input | Primary phone interaction must drive real game actions. | `hasTouch`/`isMobile` context and `page.tap()`. | `e2e/tests/mobile/touch.spec.ts::T1: trump bid placed via tap (not mouse click)` | ❌ gap | Suit-selection tap did not register in this run; turn failed to advance. See [MR-11](#mr-11-suit-tap-does-not-reliably-register-in-touch-context). |
 | Long-press input | Accidental holds must not submit or repeat an action. | CDP touch-start/hold/touch-end sequence. | `e2e/tests/mobile/touch.spec.ts::T5: long-press changes the bid counter once without submitting a bid` | ✅ verified | Counter changes once; bidder/turn remains unchanged until explicit submit. |
 | Swipe input | Phone users must be able to scroll without corrupting game state. | CDP touch-start/move/end on a keyboard-height score viewport. | `e2e/tests/mobile/touch.spec.ts::T6: touch swipe scrolls scores without changing authoritative scores` | ✅ verified | Scroll position changes and DOM score remains equal to backend score. |
 | Tap-target size | Small controls cause mis-taps during bidding. | Bounding boxes under both phone descriptors, 44×44 CSS-pixel threshold. | `e2e/tests/mobile/touch.spec.ts::T2a: bidding controls meet 44×44px touch-target guideline on iPhone SE`; `::T2b: bidding controls meet 44×44px touch-target guideline on iPhone 14` | ✅ verified | Bidding suit, counter, bid, and pass controls meet the threshold. |
@@ -35,8 +35,8 @@ for final iOS Safari/Android Chrome physical-device acceptance. The distinction 
 | Small and large phone playability | The dominant phone sizes must support a complete round. | Playwright iPhone SE and iPhone 14 descriptors. | `e2e/tests/mobile/viewport.spec.ts::V1: smoke round completes on iPhone SE (375×667, DPR 2)`; `::V2: smoke round completes on iPhone 14 (390×664, DPR 3)` | ✅ verified | Both paths assert DOM score equals backend score. |
 | Mobile flags and DPR | CSS and event behavior depend on touch/mobile/DPR values, not viewport alone. | Built-in descriptors; inspect touch points, coarse pointer, width, DPR. | `e2e/tests/mobile/viewport.spec.ts::V5: phone contexts expose touch input, mobile width, and expected DPR` | ✅ verified | SE reports 375/DPR2; iPhone 14 reports 390/DPR3; touch/coarse pointer are active. |
 | Small-screen scrolling and clipping | Score history and bidding controls cannot fall outside the viewport. | Two-round SE score page plus bounding-box checks on both profiles. | `e2e/tests/mobile/viewport.spec.ts::V3: score table rows reachable after 2 rounds on small viewport`; `::V4: bidding controls are not clipped below viewport on both phone profiles` | ✅ verified | Rows scroll into view and critical bid controls remain within viewport bounds. |
-| Safe-area/notch handling | Home indicators and notches can cover controls. | iPhone 14 descriptor, viewport-meta inspection, gameplay safe-padding selector. | `e2e/tests/mobile/viewport.spec.ts::V6: gameplay wires viewport-fit cover and bottom safe-area padding` | ❌ gap | Emitted viewport meta omits `viewport-fit=cover`; physical inset remains untestable in desktop Chromium. See [MR-02](#mr-02-viewport-zoom-and-safe-area-metadata-are-ineffective) and [ML-01](#ml-01-browser-emulation-boundaries). |
-| Accidental zoom prevention | Double-tap/pinch zoom can move controls off-screen mid-action. | Inspect emitted viewport meta in a mobile context. | `e2e/tests/mobile/touch.spec.ts::X1: viewport meta prevents pinch/double-tap zoom during gameplay` | ❌ gap | Emitted meta lacks both `maximum-scale=1` and `user-scalable=no`; see [MR-02](#mr-02-viewport-zoom-and-safe-area-metadata-are-ineffective). |
+| Safe-area/notch handling | Home indicators and notches can cover controls. | iPhone 14 descriptor, viewport-meta inspection, gameplay safe-padding selector. | `e2e/tests/mobile/viewport.spec.ts::V6: gameplay wires viewport-fit cover and bottom safe-area padding` | ⚠️ partial | Emitted meta now includes `viewport-fit=cover` and gameplay uses `pb-safe-bottom`; physical inset and notch layout require devices. See [ML-01](#ml-01-browser-emulation-boundaries). |
+| Accidental zoom prevention | Double-tap/pinch zoom can move controls off-screen mid-action. | Inspect emitted viewport meta in a mobile context. | `e2e/tests/mobile/touch.spec.ts::X1: viewport meta prevents pinch/double-tap zoom during gameplay` | ✅ verified | Emitted meta contains `maximum-scale=1` and `user-scalable=no` after moving viewport to a dedicated Next.js export. |
 | Orientation change mid-game | Rotation must preserve state and reachable controls. | Runtime viewport swap portrait↔landscape. | `e2e/tests/mobile/orientation.spec.ts::O1: portrait→landscape rotation mid-bidding; state preserved, bidding continues`; `::O3: landscape→portrait rotation during playing phase; claim-trick button visible`; `::O4: smoke round completes when game starts in landscape (844×375)` | ⚠️ partial | Browser-visible layout passes; sensor/orientation-lock and iOS Safari behavior require devices. See [ML-01](#ml-01-browser-emulation-boundaries). |
 | Background during another turn | A returning observer must not see stale bidding state. | Synthetic `visibilitychange`/`pagehide` around other players' bids. | `e2e/tests/mobile/lifecycle.spec.ts::B1: short background during another player bid; foreground reflects new state`; `::B2: multiple turns pass while observer is backgrounded; foreground reflects current state`; `::S3: foreground requests authoritative state synchronization` | ⚠️ partial | Socket events happen to update state, but foreground emits no authoritative sync. See [MR-03](#mr-03-no-authoritative-sync-on-foreground). |
 | App switch during own bid | A brief switch must preserve the player's pending turn. | Background/foreground the current bidder. | `e2e/tests/mobile/lifecycle.spec.ts::B4: background while it is your trump bid turn; turn remains on foreground` | ✅ verified | Brief synthetic switch retains the active bid controls. Long suspension is covered separately. |
@@ -53,7 +53,7 @@ for final iOS Safari/Android Chrome physical-device acceptance. The distinction 
 | Active-bidder tab close | One interrupted player must not deadlock three others. | Close whichever page currently owns `bidding-pass`; poll other players. | `e2e/tests/mobile/recovery.spec.ts::R2: tab close on own bid turn auto-advances without deadlocking the table` | ❌ gap | Other players remain blocked; see [MR-06](#mr-06-active-bidder-disconnect-deadlocks-the-table). |
 | Browser kill / relaunch state | OS process eviction must restore auth, room, phase, and turn. | Close context, create a fresh context from live storage state, navigate to room. | `e2e/tests/mobile/pwa.spec.ts::P1: JWT auth token persists across context close + reopen`; `e2e/tests/mobile/recovery.spec.ts::R3: context close + new context; JWT from storage state re-authenticates automatically` | ❌ gap | Auth and socket recover, but bidding DOM/authoritative phase does not. See [MR-07](#mr-07-relaunch-restores-auth-but-not-active-game-state). |
 | Virtual keyboard focus/resize | The keyboard halves usable height and can cover form actions. | Focus inputs and shrink viewport to 375×350, then restore it. | `e2e/tests/mobile/touch.spec.ts::K1: room join form accessible with simulated keyboard-open viewport (375×350)`; `::K2: display name input value retained after blur` | ⚠️ partial | Focus, value retention, and scroll-reachable submit pass; native VisualViewport/IME behavior needs devices. See [ML-01](#ml-01-browser-emulation-boundaries). |
-| Room-code keyboard attributes | Autocorrect can silently mutate shared room codes. | Inspect input attributes in mobile context. | `e2e/tests/mobile/touch.spec.ts::K3: room-code input does not have autocorrect enabled` | ❌ gap | `autocorrect="off"`/safe capitalization attributes are absent; see [MR-08](#mr-08-room-code-input-allows-mobile-autocorrect). |
+| Room-code keyboard attributes | Autocorrect can silently mutate shared room codes. | Inspect input attributes in mobile context. | `e2e/tests/mobile/touch.spec.ts::K3: room-code input does not have autocorrect enabled` | ✅ verified | Input now carries `autoCorrect="off"`, `autoCapitalize="characters"`, `autoComplete="off"`, and `spellCheck={false}`. |
 | Browser back/forward interruption | In-browser navigation must not strand an active player. | `goBack()` then `goForward()` during bidding. | `e2e/tests/mobile/touch.spec.ts::G1: browser back then forward recovers the active mobile game` | ❌ gap | Returned page reports Disconnected and does not restore active bid controls; see [MR-09](#mr-09-navigation-recovery-and-connection-status-are-stale). |
 | Room-code paste/share sheet | Players commonly paste codes from messaging apps. | `fill()` paste-equivalent in touch context. | `e2e/tests/mobile/touch.spec.ts::X3: room code paste (fill) correctly joins the room` | ✅ verified | Pasted code joins the intended room. |
 | PWA manifest/install metadata | Standalone launch needs valid metadata and resolvable icons. | Fetch manifest and every declared icon. | `e2e/tests/mobile/pwa.spec.ts::P2: /manifest.json is served with required PWA fields` | ❌ gap | Manifest exists and says standalone, but declared icons return non-2xx. See [MR-10](#mr-10-pwa-assets-and-offline-runtime-are-incomplete). |
@@ -68,13 +68,6 @@ for final iOS Safari/Android Chrome physical-device acceptance. The distinction 
 
 `T4` observes a trick count of 2 after two immediate taps. The Claim Trick path lacks an in-flight
 guard/idempotency key, so a normal mobile double-tap changes durable round state twice.
-
-### MR-02 Viewport zoom and safe-area metadata are ineffective
-
-`X1` and `V6` observe emitted content `width=device-width, initial-scale=1`. The nested Next metadata
-configuration is not producing zoom-lock or `viewport-fit=cover`, even though gameplay uses a
-`pb-safe-bottom` class. A physical notch cannot be considered safe until the emitted metadata is fixed
-and verified on devices.
 
 ### MR-03 No authoritative sync on foreground
 
@@ -103,10 +96,6 @@ There is no disconnect timeout/auto-pass recovery, so three connected players ca
 but does not restore bidding DOM/phase. `R3` proves only authentication and route access, not complete
 authoritative turn recovery.
 
-### MR-08 Room-code input allows mobile autocorrect
-
-`K3` finds no `autocorrect="off"` protection. Mobile keyboards may alter a valid six-character code.
-
 ### MR-09 Navigation recovery and connection status are stale
 
 `G1` returns forward to the game route but the UI remains Disconnected and active bid controls do not
@@ -117,6 +106,14 @@ trustworthy readiness signal after interruption.
 
 `P2` finds missing declared icon files. `P3` finds zero service-worker registrations and no controller.
 The manifest alone does not establish an installable, offline-capable standalone experience.
+
+### MR-11 Suit tap does not reliably register in touch context
+
+`T1` taps the counter-plus, then `bidding-suit-hearts`, then `bidding-bid` via `page.tap()`.
+The counter advance is confirmed (value reaches 6), but the subsequent suit tap does not register, so
+the bid submit is a no-op and the active player retains `bidding-pass`. The `BiddingPage.placeTrumpBid`
+helper guards each step with `toBeEnabled` before clicking — the raw `page.tap()` in T1 does not.
+Fix: add a visibility/enabled wait before the suit tap, or route T1 through the page-object helper.
 
 ## Emulation limitations
 
