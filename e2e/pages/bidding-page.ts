@@ -1,3 +1,4 @@
+import { expect } from '@playwright/test';
 import { BasePage, TrumpSuit } from './base-page';
 
 export class BiddingPage extends BasePage {
@@ -7,11 +8,16 @@ export class BiddingPage extends BasePage {
     await this.setCounter(amount);
     await this.clickTid(`bidding-suit-${suit}`);
     await this.clickTid('bidding-bid');
+    await expect(this.tid('bidding-pass')).toBeHidden({ timeout: 15_000 });
   }
-  async pass(): Promise<void> { await this.clickTid('bidding-pass'); }
+  async pass(): Promise<void> {
+    await this.clickTid('bidding-pass');
+    await expect(this.tid('bidding-pass')).toBeHidden({ timeout: 15_000 });
+  }
   async setContract(n: number): Promise<void> {
     await this.setCounter(n);
     await this.clickTid('bidding-confirm');
+    await expect(this.tid('bidding-confirm')).toBeHidden({ timeout: 15_000 });
   }
   async runningSum(): Promise<number> { return this.numberText('bidding-running-sum'); }
   async frischActive(): Promise<boolean> { return this.visible('frisch-indicator'); }
