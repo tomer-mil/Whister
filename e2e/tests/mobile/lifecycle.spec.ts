@@ -161,3 +161,63 @@ test('S2: all 4 players background briefly then foreground; state consistent', a
     await driver.close();
   }
 });
+
+// S3: trick counts are accurate on P3's view after offline + reconnect
+// Currently FAILS: without game:sync (F1+F6), P3 misses trick_claimed events fired while offline.
+// After reconnect, P3's DOM still shows the pre-disconnect counts (0), not the real counts (2).
+// Will pass once the backend emits current game state when a socket reconnects.
+test('S3: P3 trick counts accurate after going offline mid-round and reconnecting', async ({ browser }) => {
+  test.setTimeout(180_000);
+  const driver = new GameDriver(browser);
+  await driver.setup(IPHONE_SE);
+  try {
+    await driver.createGame();
+    await driver.confirmSeating();
+    // Advance to playing phase
+    await (driver as any).runTrumpAuction('clubs', 0);
+    await (driver as any).runContractBidding([5, 3, 3, 3]);
+    // Confirm all 4 pages are in playing phase before taking P3 offline
+    await expect(driver.pages[3].getByTestId('playing-claim-trick')).toBeVisible({ timeout: 15_000 });
+    // Take P3 offline (involuntary drop — triggers socket.io reconnect backoff on restore)
+    await goOffline(driver.contexts[3]);
+    await expect.poll(
+      async () => driver.pages[3].evaluate(() => !(window as any).socketManager?.isConnected()),
+      { timeout: 40_000 },
+    ).toBe(true);
+    // P0 claims 2 tricks while P3 is offline — P0, P1, P2 see count = 2; P3 is stale at 0
+    await driver.playing(0).claimTrick();
+    await driver.playing(0).claimTrick();
+    // Verify the other 3 pages immediately reflect count = 2
+    for (const idx of [0, 1, 2]) {
+      await expect.poll(
+        async () => {
+          const text = await driver.pages[idx].getByTestId('playing-trick-count-0').innerText();
+          return parseInt(text, 10);
+        },
+        { timeout: 10_000, message: `P${idx} should see P0 trick count = 2` },
+      ).toBe(2);
+    }
+    // Restore P3's network — socket.io reconnects via built-in backoff
+    await goOnline(driver.contexts[3]);
+    await expect.poll(
+      async () => driver.pages[3].evaluate(() => !!(window as any).socketManager?.isConnected()),
+      { timeout: 60_000 },
+    ).toBe(true);
+    // Ensure P3 is back in playing phase after reconnect
+    await expect(driver.pages[3].getByTestId('playing-claim-trick')).toBeVisible({ timeout: 15_000 });
+    // After reconnect, P3 must show the same trick count as the rest.
+    // Currently FAILS (count stays 0) until game:sync (F1+F6) is implemented.
+    await expect.poll(
+      async () => {
+        const text = await driver.pages[3].getByTestId('playing-trick-count-0').innerText();
+        return parseInt(text, 10);
+      },
+      {
+        timeout: 30_000,
+        message: 'S3 FINDING F1+F6: P3 trick count stale after reconnect — game:sync not implemented',
+      },
+    ).toBe(2);
+  } finally {
+    await driver.close();
+  }
+});
