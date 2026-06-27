@@ -10,6 +10,7 @@ import type {
   RoundTrickWonPayload,
   RoundTrickUndonePayload,
   RoundCompletePayload,
+  SyncStatePayload,
 } from '@/types/socket-events';
 
 export interface UseGameOptions {
@@ -31,6 +32,7 @@ export function useGame(options: UseGameOptions) {
   // const incrementTotalTricks = useStore((state) => state.incrementTotalTricks);
   const setRoundResults = useStore((state) => state.setRoundResults);
   const setPhase = useStore((state) => state.setPhase);
+  const setCurrentTurn = useStore((state) => state.setCurrentTurn);
 
   // Claim a trick - uses backend event name round:claim_trick
   const claimTrick = useCallback(async () => {
@@ -122,12 +124,32 @@ export function useGame(options: UseGameOptions) {
       });
     });
 
+    // Sync state rehydration - backend sends sync:state in response to sync:request
+    socket.on('sync:state', (payload: SyncStatePayload) => {
+      // Update game phase
+      setPhase(payload.phase as any);
+
+      // Update current bidder if in a bidding phase
+      if (payload.current_bidder) {
+        setCurrentTurn(payload.current_bidder);
+      }
+
+      // Rehydrate trick counts if in playing phase
+      if (payload.phase === 'playing') {
+        const tricks = (payload.additional_data?.tricks ?? {}) as Record<string, number>;
+        Object.entries(tricks).forEach(([userId, count]) => {
+          updatePlayerTricks(userId, count);
+        });
+      }
+    });
+
     return () => {
       socket.off('round:trick_won');
       socket.off('round:trick_undone');
       socket.off('round:complete');
+      socket.off('sync:state');
     };
-  }, [socket, updatePlayer, addRoundScore, setGameState, updatePlayerTricks, setRoundResults, setPhase]);
+  }, [socket, updatePlayer, addRoundScore, setGameState, updatePlayerTricks, setRoundResults, setPhase, setCurrentTurn]);
 
   // Emit sync:request when the tab returns to visible so the server can push
   // current state without waiting for the next server-initiated event.
