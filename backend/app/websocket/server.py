@@ -7,9 +7,11 @@ import socketio  # type: ignore
 from app.config import get_settings
 from app.core.exceptions import AppException
 from app.core.security import decode_token
+from app.schemas.game import RoundPhase
 from app.websocket.connection_context import ConnectionContext
 from app.websocket.room_manager import RoomManager
 from app.websocket.schemas import (
+    BidPassedPayload,
     ClientEvents,
     ErrorPayload,
     RoomJoinedPayload,
@@ -183,11 +185,12 @@ def register_socketio_handlers(  # noqa: C901
                         phase = round_state_snapshot.get("phase", "")
                         current_bidder_id = round_state_snapshot.get("current_bidder_id")
 
-                        if phase == "trump_bidding" and current_bidder_id == user_id:
+                        if phase == RoundPhase.TRUMP_BIDDING.value and current_bidder_id == user_id:
                             logger.info(
                                 "Active trump bidder %s disconnected — auto-passing", user_id
                             )
                             from app.services.bidding_service import BiddingService  # lazy import
+
                             bidding_svc = BiddingService(room_manager.redis)
                             passed, error_msg = await bidding_svc.pass_trump_bid(
                                 room_code, user_id, ctx.display_name
@@ -216,7 +219,7 @@ def register_socketio_handlers(  # noqa: C901
                                 active_bidders = [p for p in players if p.user_id not in passed_players]
 
                                 from app.websocket.game_events import get_next_bidder, emit_your_turn  # lazy import
-                                next_id, _next_name, next_seat = await get_next_bidder(
+                                next_id, next_name, next_seat = await get_next_bidder(
                                     room_manager, room_code, current_seat, passed_players
                                 )
                                 if next_id and next_seat is not None:
@@ -228,6 +231,21 @@ def register_socketio_handlers(  # noqa: C901
                                             "current_bidder_seat": str(next_seat),
                                         },
                                     )
+                                    # Notify all room members that the disconnecting player passed
+                                    consecutive_passes = int(fresh_round.get("consecutive_passes", 0))
+                                    passed_payload = BidPassedPayload(
+                                        player_id=user_id,
+                                        player_name=ctx.display_name,
+                                        consecutive_passes=consecutive_passes,
+                                        next_bidder_id=next_id,
+                                        next_bidder_name=next_name,
+                                        next_bidder_seat=next_seat,
+                                    )
+                                    await sio.emit(
+                                        ServerEvents.BID_PASSED,
+                                        passed_payload.to_dict(),
+                                        room=f"room:{room_code}",
+                                    )
                                     minimum_bid = int(
                                         fresh_round.get("minimum_bid", 5)
                                     )
@@ -235,7 +253,7 @@ def register_socketio_handlers(  # noqa: C901
                                         sio,
                                         room_manager,
                                         next_id,
-                                        phase="trump_bidding",
+                                        phase=RoundPhase.TRUMP_BIDDING.value,
                                         minimum_bid=minimum_bid,
                                         is_last_bidder=False,
                                     )
@@ -280,7 +298,7 @@ def register_socketio_handlers(  # noqa: C901
                                         sio,
                                         room_manager,
                                         winner_id,
-                                        phase="contract_bidding",
+                                        phase=RoundPhase.CONTRACT_BIDDING.value,
                                         is_trump_winner=True,
                                         trump_winning_bid=winning_bid,
                                         current_contract_sum=0,
@@ -322,7 +340,7 @@ def register_socketio_handlers(  # noqa: C901
                                             sio,
                                             room_manager,
                                             first_player.user_id,
-                                            phase="trump_bidding",
+                                            phase=RoundPhase.TRUMP_BIDDING.value,
                                             minimum_bid=new_minimum_bid,
                                             current_highest_bid=None,
                                             current_highest_suit=None,
