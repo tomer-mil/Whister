@@ -822,6 +822,17 @@ def register_playing_handlers(
                 )
                 return
 
+            # --- Idempotency: drop duplicate taps within 2s ---
+            inflight_key = f"room:{room_code}:claim_inflight:{ctx.user_id}"
+            acquired = await room_manager.redis.set(inflight_key, "1", nx=True, px=2000)
+            if not acquired:
+                logger.debug(
+                    "Duplicate claim_trick from %s in room %s — dropped",
+                    ctx.user_id,
+                    room_code,
+                )
+                return {"success": True}
+
             # Get player's current tricks
             tricks_key = f"room:{room_code}:tricks"
             current_tricks = await room_manager.redis.hget(tricks_key, ctx.user_id)
