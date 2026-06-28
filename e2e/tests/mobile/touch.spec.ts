@@ -21,7 +21,10 @@ test('T1: trump bid placed via tap (not mouse click)', async ({ browser }) => {
     // Tap counter-plus to reach 6, tap suit, tap bid — all via page.tap()
     await page.tap('[data-testid="bidding-counter-plus"]');
     await expect(page.getByTestId('bidding-counter-value')).toHaveText('6', { timeout: 5_000 });
+    // Wait for React's counter update to leave the suit and submit controls interactive.
+    await expect(page.getByTestId('bidding-suit-hearts')).toBeVisible({ timeout: 5_000 });
     await page.tap('[data-testid="bidding-suit-hearts"]');
+    await expect(page.getByTestId('bidding-bid')).toBeEnabled({ timeout: 5_000 });
     await page.tap('[data-testid="bidding-bid"]');
     // Bid placed — a different player now has the bidding controls
     const nextIdx = await firstPageWith(driver.pages, 'bidding-pass', 15_000);
