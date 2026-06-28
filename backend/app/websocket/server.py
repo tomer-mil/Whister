@@ -208,6 +208,13 @@ def register_socketio_handlers(  # noqa: C901
                                 current_seat = int(
                                     round_state_snapshot.get("current_bidder_seat", 0)
                                 )
+                                # Fetch fresh round state and player list for terminal-state checks
+                                fresh_round = await room_manager.get_room_round_state(room_code)
+                                highest_bid_json = fresh_round.get("highest_bid", "")
+                                frisch_count = int(fresh_round.get("frisch_count", 0))
+                                players = await room_manager._get_room_players(room_code)
+                                active_bidders = [p for p in players if p.user_id not in passed_players]
+
                                 from app.websocket.game_events import get_next_bidder, emit_your_turn  # lazy import
                                 next_id, _next_name, next_seat = await get_next_bidder(
                                     room_manager, room_code, current_seat, passed_players
@@ -222,7 +229,7 @@ def register_socketio_handlers(  # noqa: C901
                                         },
                                     )
                                     minimum_bid = int(
-                                        round_state_snapshot.get("minimum_bid", 5)
+                                        fresh_round.get("minimum_bid", 5)
                                     )
                                     await emit_your_turn(
                                         sio,
@@ -235,6 +242,100 @@ def register_socketio_handlers(  # noqa: C901
                                     logger.info(
                                         "Auto-pass complete; next bidder is %s", next_id
                                     )
+                                elif not next_id and highest_bid_json and len(active_bidders) == 1:
+                                    # Last bidder with highest bid — settle trump, transition to contract bidding
+                                    import json as _json
+                                    from app.schemas.game import TrumpSuit
+                                    from app.websocket.schemas import BidTrumpSetPayload
+                                    bid_data = _json.loads(highest_bid_json)
+                                    winner_id = bid_data["player_id"]
+                                    winner_name = bid_data["player_name"]
+                                    trump_suit = TrumpSuit(bid_data["suit"])
+                                    winning_bid = bid_data["amount"]
+                                    await bidding_svc.set_trump(
+                                        room_code, winner_id, winner_name, trump_suit, winning_bid
+                                    )
+                                    await room_manager.redis.delete(f"room:{room_code}:passed_players")
+                                    await room_manager.redis.hset(
+                                        f"room:{room_code}:round",
+                                        mapping={
+                                            "current_bidder_id": winner_id,
+                                            "current_bidder_seat": str(active_bidders[0].seat_position),
+                                            "contract_bid_count": "0",
+                                        },
+                                    )
+                                    trump_payload = BidTrumpSetPayload(
+                                        trump_suit=trump_suit.value,
+                                        winner_id=winner_id,
+                                        winner_name=winner_name,
+                                        winning_bid=winning_bid,
+                                        frisch_count=frisch_count,
+                                    )
+                                    await sio.emit(
+                                        ServerEvents.BID_TRUMP_SET,
+                                        trump_payload.to_dict(),
+                                        room=f"room:{room_code}",
+                                    )
+                                    await emit_your_turn(
+                                        sio,
+                                        room_manager,
+                                        winner_id,
+                                        phase="contract_bidding",
+                                        is_trump_winner=True,
+                                        trump_winning_bid=winning_bid,
+                                        current_contract_sum=0,
+                                        is_last_bidder=False,
+                                    )
+                                    logger.info(
+                                        "Auto-pass: trump settled for winner %s in room %s",
+                                        winner_id, room_code,
+                                    )
+                                elif not next_id and not highest_bid_json:
+                                    # All 4 players passed with no bid — frisch
+                                    from app.websocket.schemas import FrischStartedPayload
+                                    if frisch_count < 3:
+                                        await bidding_svc.handle_frisch(room_code)
+                                        await room_manager.redis.delete(f"room:{room_code}:passed_players")
+                                        new_minimum_bid = bidding_svc.get_minimum_bid(frisch_count + 1)
+                                        first_player = next(
+                                            (p for p in players if p.seat_position == 0), players[0]
+                                        )
+                                        await room_manager.redis.hset(
+                                            f"room:{room_code}:round",
+                                            mapping={
+                                                "current_bidder_id": first_player.user_id,
+                                                "current_bidder_seat": str(first_player.seat_position),
+                                            },
+                                        )
+                                        frisch_payload = FrischStartedPayload(
+                                            frisch_number=frisch_count + 1,
+                                            new_minimum_bid=new_minimum_bid,
+                                            first_bidder_id=first_player.user_id,
+                                            first_bidder_name=first_player.display_name,
+                                        )
+                                        await sio.emit(
+                                            ServerEvents.BID_FRISCH_STARTED,
+                                            frisch_payload.to_dict(),
+                                            room=f"room:{room_code}",
+                                        )
+                                        await emit_your_turn(
+                                            sio,
+                                            room_manager,
+                                            first_player.user_id,
+                                            phase="trump_bidding",
+                                            minimum_bid=new_minimum_bid,
+                                            current_highest_bid=None,
+                                            current_highest_suit=None,
+                                            is_last_bidder=False,
+                                        )
+                                        logger.info(
+                                            "Auto-pass: frisch %d started in room %s",
+                                            frisch_count + 1, room_code,
+                                        )
+                                    else:
+                                        logger.warning(
+                                            "Auto-pass: max frisch reached in room %s", room_code
+                                        )
                             else:
                                 logger.warning(
                                     "Auto-pass failed for %s in room %s: %s",
