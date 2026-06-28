@@ -154,10 +154,16 @@ def register_socketio_handlers(  # noqa: C901
         try:
             ctx = _connection_contexts.get(sid)
             if ctx:
-                # Handle room disconnect
+                # Read round state BEFORE handle_disconnect in case it modifies Redis
+                round_state_snapshot: dict[str, str] = {}
+                if ctx.current_room:
+                    try:
+                        round_state_snapshot = await room_manager.get_room_round_state(ctx.current_room)
+                    except Exception:
+                        pass
+
                 room_code, user_id = await room_manager.handle_disconnect(sid)
                 if room_code and user_id:
-                    # Broadcast disconnect to room
                     broadcast_payload = RoomPlayerDisconnectedPayload(
                         player_id=user_id,
                         player_name=ctx.display_name,
@@ -171,6 +177,74 @@ def register_socketio_handlers(  # noqa: C901
                     logger.info(
                         "User %s disconnected from room %s", user_id, room_code
                     )
+
+                    # --- Auto-pass if disconnected player was the active trump bidder ---
+                    try:
+                        phase = round_state_snapshot.get("phase", "")
+                        current_bidder_id = round_state_snapshot.get("current_bidder_id")
+
+                        if phase == "trump_bidding" and current_bidder_id == user_id:
+                            logger.info(
+                                "Active trump bidder %s disconnected — auto-passing", user_id
+                            )
+                            from app.services.bidding_service import BiddingService  # lazy import
+                            bidding_svc = BiddingService(room_manager.redis)
+                            passed, error_msg = await bidding_svc.pass_trump_bid(
+                                room_code, user_id, ctx.display_name
+                            )
+                            if passed:
+                                # Add to passed_players set
+                                await room_manager.redis.sadd(
+                                    f"room:{room_code}:passed_players", user_id
+                                )
+                                # Determine next bidder
+                                passed_raw = await room_manager.redis.smembers(
+                                    f"room:{room_code}:passed_players"
+                                )
+                                passed_players = {
+                                    p.decode() if isinstance(p, bytes) else p
+                                    for p in passed_raw
+                                }
+                                current_seat = int(
+                                    round_state_snapshot.get("current_bidder_seat", 0)
+                                )
+                                from app.websocket.game_events import get_next_bidder, emit_your_turn  # lazy import
+                                next_id, _next_name, next_seat = await get_next_bidder(
+                                    room_manager, room_code, current_seat, passed_players
+                                )
+                                if next_id and next_seat is not None:
+                                    # Advance current_bidder_id in Redis
+                                    await room_manager.redis.hset(
+                                        f"room:{room_code}:round",
+                                        mapping={
+                                            "current_bidder_id": next_id,
+                                            "current_bidder_seat": str(next_seat),
+                                        },
+                                    )
+                                    minimum_bid = int(
+                                        round_state_snapshot.get("minimum_bid", 5)
+                                    )
+                                    await emit_your_turn(
+                                        sio,
+                                        room_manager,
+                                        next_id,
+                                        phase="trump_bidding",
+                                        minimum_bid=minimum_bid,
+                                        is_last_bidder=False,
+                                    )
+                                    logger.info(
+                                        "Auto-pass complete; next bidder is %s", next_id
+                                    )
+                            else:
+                                logger.warning(
+                                    "Auto-pass failed for %s in room %s: %s",
+                                    user_id, room_code, error_msg,
+                                )
+                    except Exception as auto_pass_err:
+                        logger.exception(
+                            "Auto-pass failed for %s in room %s: %s",
+                            user_id, room_code, auto_pass_err,
+                        )
                 else:
                     logger.info("User %s disconnected", ctx.user_id)
 
