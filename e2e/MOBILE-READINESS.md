@@ -31,7 +31,7 @@ for final iOS Safari/Android Chrome physical-device acceptance. The distinction 
 | Swipe input | Phone users must be able to scroll without corrupting game state. | CDP touch-start/move/end on a keyboard-height score viewport. | `e2e/tests/mobile/touch.spec.ts::T6: touch swipe scrolls scores without changing authoritative scores` | ✅ verified | Scroll position changes and DOM score remains equal to backend score. |
 | Tap-target size | Small controls cause mis-taps during bidding. | Bounding boxes under both phone descriptors, 44×44 CSS-pixel threshold. | `e2e/tests/mobile/touch.spec.ts::T2a: bidding controls meet 44×44px touch-target guideline on iPhone SE`; `::T2b: bidding controls meet 44×44px touch-target guideline on iPhone 14` | ✅ verified | Bidding suit, counter, bid, and pass controls meet the threshold. |
 | No hover dependency | Phones cannot reveal hover-only controls. | Full touch-context round with no hover call. | `e2e/tests/mobile/touch.spec.ts::T3: full round completes on touch context with zero hover interactions` | ✅ verified | Complete round reaches backend-verified scores. |
-| Rapid repeated action | Mobile double-taps must not duplicate a move. | Two immediate taps on Claim Trick. | `e2e/tests/mobile/touch.spec.ts::T4: two rapid taps on claim-trick count as one trick claim` | ❌ gap | Deterministically counts twice; see [MR-01](#mr-01-rapid-trick-claims-are-not-idempotent). |
+| Rapid repeated action | Mobile double-taps must not duplicate a move. | Two immediate taps on Claim Trick. | `e2e/tests/mobile/touch.spec.ts::T4: two rapid taps on claim-trick count as one trick claim` | ✅ verified | 2-second Redis NX key drops the duplicate tap; backend confirms count=1 after two immediate taps. |
 | Small and large phone playability | The dominant phone sizes must support a complete round. | Playwright iPhone SE and iPhone 14 descriptors. | `e2e/tests/mobile/viewport.spec.ts::V1: smoke round completes on iPhone SE (375×667, DPR 2)`; `::V2: smoke round completes on iPhone 14 (390×664, DPR 3)` | ✅ verified | Both paths assert DOM score equals backend score. |
 | Mobile flags and DPR | CSS and event behavior depend on touch/mobile/DPR values, not viewport alone. | Built-in descriptors; inspect touch points, coarse pointer, width, DPR. | `e2e/tests/mobile/viewport.spec.ts::V5: phone contexts expose touch input, mobile width, and expected DPR` | ✅ verified | SE reports 375/DPR2; iPhone 14 reports 390/DPR3; touch/coarse pointer are active. |
 | Small-screen scrolling and clipping | Score history and bidding controls cannot fall outside the viewport. | Two-round SE score page plus bounding-box checks on both profiles. | `e2e/tests/mobile/viewport.spec.ts::V3: score table rows reachable after 2 rounds on small viewport`; `::V4: bidding controls are not clipped below viewport on both phone profiles` | ✅ verified | Rows scroll into view and critical bid controls remain within viewport bounds. |
@@ -50,7 +50,7 @@ for final iOS Safari/Android Chrome physical-device acceptance. The distinction 
 | Reload/reconnect on slow 3G | Mobile browsers reload evicted tabs on weak networks. | CDP 3G throttle during page reload and socket/state polling. | `e2e/tests/mobile/pwa.spec.ts::Th2: socket reconnects after a page reload under 3G throttle` | ✅ verified | After reload under 3G, the socket reconnects and `sync:state` restores the bidding DOM. Th2 passes. |
 | Packet-loss behavior | Cellular links lose packets, not only bandwidth. | No faithful packet-loss primitive in this Chromium harness. | `e2e/tests/mobile/network.spec.ts::N1: socket reconnects and connection indicator recovers after offline→online`; `::N4: full round completes under 3G throttle (250kbps, 300ms RTT)` | ⚠️ partial | Offline and throughput/latency are covered; stochastic loss needs a proxy/device lab. See [ML-01](#ml-01-browser-emulation-boundaries). |
 | Tab close and reopen | Accidental tab closure should allow room recovery and presence restoration. | Close page, open a new page in the same authenticated context. | `e2e/tests/mobile/recovery.spec.ts::R1: tab close mid-bidding; reopen sees live game state` | ⚠️ partial | Game UI returns, but the test does not yet prove other clients saw exact disconnect/reconnect presence events. See [ML-02](#ml-02-presence-event-proof-is-incomplete). |
-| Active-bidder tab close | One interrupted player must not deadlock three others. | Close whichever page currently owns `bidding-pass`; poll other players. | `e2e/tests/mobile/recovery.spec.ts::R2: tab close on own bid turn auto-advances without deadlocking the table` | ❌ gap | Other players remain blocked; see [MR-06](#mr-06-active-bidder-disconnect-deadlocks-the-table). |
+| Active-bidder tab close | One interrupted player must not deadlock three others. | Close whichever page currently owns `bidding-pass`; poll other players. | `e2e/tests/mobile/recovery.spec.ts::R2: tab close on own bid turn auto-advances without deadlocking the table` | ✅ verified | Server auto-passes the disconnected bidder; other players receive bid:your_turn within the same disconnect event. |
 | Browser kill / relaunch state | OS process eviction must restore auth, room, phase, and turn. | Close context, create a fresh context from live storage state, navigate to room. | `e2e/tests/mobile/pwa.spec.ts::P1: JWT auth token persists across context close + reopen`; `e2e/tests/mobile/recovery.spec.ts::R3: context close + new context; JWT from storage state re-authenticates automatically` | ✅ verified | Auth persists, the socket reconnects, and backend `sync:state` restores the bidding phase after context reopen. P1 and R3 pass. |
 | Virtual keyboard focus/resize | The keyboard halves usable height and can cover form actions. | Focus inputs and shrink viewport to 375×350, then restore it. | `e2e/tests/mobile/touch.spec.ts::K1: room join form accessible with simulated keyboard-open viewport (375×350)`; `::K2: display name input value retained after blur` | ⚠️ partial | Focus, value retention, and scroll-reachable submit pass; native VisualViewport/IME behavior needs devices. See [ML-01](#ml-01-browser-emulation-boundaries). |
 | Room-code keyboard attributes | Autocorrect can silently mutate shared room codes. | Inspect input attributes in mobile context. | `e2e/tests/mobile/touch.spec.ts::K3: room-code input does not have autocorrect enabled` | ✅ verified | Input now carries `autoCorrect="off"`, `autoCapitalize="characters"`, `autoComplete="off"`, and `spellCheck={false}`. |
@@ -64,11 +64,6 @@ for final iOS Safari/Android Chrome physical-device acceptance. The distinction 
 
 ## Known gaps / app-side defects
 
-### MR-01 Rapid trick claims are not idempotent
-
-`T4` observes a trick count of 2 after two immediate taps. The Claim Trick path lacks an in-flight
-guard/idempotency key, so a normal mobile double-tap changes durable round state twice.
-
 ### MR-04 Score fetch failure is silent
 
 `N3` aborts the score-table request and sees no `error-toast`. The player can receive empty/stale scores
@@ -78,11 +73,6 @@ without a visible error or retry action.
 
 `N4` fails to complete a full throttled round consistently. Reload and state restoration under the
 same 3G profile are covered separately and pass in `Th2`.
-
-### MR-06 Active-bidder disconnect deadlocks the table
-
-`R2` closes the actual current bidder and no other player receives bidding controls within 30 seconds.
-There is no disconnect timeout/auto-pass recovery, so three connected players can be blocked indefinitely.
 
 ### MR-09 Navigation recovery and connection status are stale
 
