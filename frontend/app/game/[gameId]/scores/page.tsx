@@ -120,37 +120,29 @@ export default function ScoreTablePage({
     );
   }
 
-  if (error && !scoreData) {
-    return (
-      <main className="min-h-screen flex flex-col items-center justify-center p-6 gap-4">
-        <p className="text-sm text-terracotta">{error}</p>
-        <Button onClick={() => router.push(`/game/${gameId}`)}>
-          Back to Game
-        </Button>
-      </main>
-    );
-  }
-
-  if (!scoreData) return null;
-
-  // Find leading player
-  const maxScore = Math.max(...Object.values(scoreData.cumulative_scores), 0);
-  const leadingPlayerId = Object.entries(scoreData.cumulative_scores).find(([, s]) => s === maxScore)?.[0];
+  const maxScore = scoreData
+    ? Math.max(...Object.values(scoreData.cumulative_scores), 0)
+    : 0;
+  const leadingPlayerId = scoreData
+    ? Object.entries(scoreData.cumulative_scores).find(([, score]) => score === maxScore)?.[0]
+    : undefined;
 
   return (
     <main className="min-h-screen pb-safe-bottom">
-      {/* Header info */}
-      <div className="px-4 py-3 flex items-center justify-between">
-        <span className="text-xs text-muted-foreground uppercase tracking-[0.1em]">
-          {scoreData.room_code}
-        </span>
-        <span className="text-xs text-muted-foreground">
-          Round {scoreData.current_round}
-        </span>
-      </div>
+      {scoreData ? (
+        <>
+          {/* Header info */}
+          <div className="px-4 py-3 flex items-center justify-between">
+            <span className="text-xs text-muted-foreground uppercase tracking-[0.1em]">
+              {scoreData.room_code}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Round {scoreData.current_round}
+            </span>
+          </div>
 
-      {/* Mondrian Score Grid */}
-      <div className="px-2 overflow-x-auto">
+          {/* Mondrian Score Grid */}
+          <div className="px-2 overflow-x-auto">
         <table className="w-full border-collapse border-2 border-foreground">
           <thead>
             <tr>
@@ -216,21 +208,29 @@ export default function ScoreTablePage({
             </tr>
           </tbody>
         </table>
-      </div>
+          </div>
 
-      {/* Winner indicator (for e2e selectors) */}
-      {leadingPlayerId && (
-        <div
-          data-testid="scores-winner"
-          data-seat={scoreData.players.find((p) => p.user_id === leadingPlayerId)?.seat_position ?? ''}
-          className="sr-only"
-        />
+          {/* Winner indicator (for e2e selectors) */}
+          {leadingPlayerId && (
+            <div
+              data-testid="scores-winner"
+              data-seat={scoreData.players.find((p) => p.user_id === leadingPlayerId)?.seat_position ?? ''}
+              className="sr-only"
+            />
+          )}
+        </>
+      ) : (
+        <div className="px-4 py-8 text-center">
+          <p data-testid="error-toast" className="text-sm text-terracotta">
+            {error ?? 'Scores unavailable — try again'}
+          </p>
+        </div>
       )}
 
       {/* Action buttons */}
       <div className="px-4 py-6 space-y-3">
-        {error && (
-          <p className="text-sm text-terracotta text-center">{error}</p>
+        {error && scoreData && (
+          <p data-testid="error-toast" className="text-sm text-terracotta text-center">{error}</p>
         )}
 
         <Button
