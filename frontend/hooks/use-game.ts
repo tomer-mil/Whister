@@ -178,8 +178,13 @@ export function useGame(options: UseGameOptions) {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [emit, roomCode]);
 
-  // A reload or reconnect may complete while the browser still reports the page
-  // as hidden. Request state whenever the socket becomes ready as well.
+  // Emit sync:request whenever the socket instance changes (i.e. on reconnect
+  // after a reload, PWA relaunch, or network interruption).  This intentionally
+  // overlaps with the visibilitychange listener above for the case where the
+  // socket reconnects while the tab is already visible — the server handler is
+  // idempotent (read-only, just re-sends current state) so the double-emit on
+  // a normal foreground load is harmless and ensures stale state is never
+  // displayed after a reconnect cycle.
   useEffect(() => {
     if (!socket || !roomCode) return;
     emit('sync:request', { room_code: roomCode }).catch(() => {

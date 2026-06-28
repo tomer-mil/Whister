@@ -1137,6 +1137,16 @@ def register_sync_handlers(
             if not room_data:
                 return {"success": False, "error": "room not found"}
 
+            # Membership guard: only members may receive room state
+            is_member = await room_manager.is_player_in_room(room_code, ctx.user_id)
+            if not is_member:
+                logger.warning(
+                    "User %s requested sync for room %s but is not a member",
+                    ctx.user_id,
+                    room_code,
+                )
+                return {"success": False, "error": "not a member of this room"}
+
             game_id = room_data.get("game_id", "")
             phase_str = room_data.get("status", "waiting")
             current_round_str = room_data.get("current_round")
