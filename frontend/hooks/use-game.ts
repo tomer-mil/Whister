@@ -3,7 +3,7 @@
  * Manages game state and WebSocket subscriptions for gameplay
  */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useSocket } from './use-socket';
 import { useStore } from '@/stores';
 import type { GameStatus, RoundPhase } from '@/types/game';
@@ -45,12 +45,21 @@ export function useGame(options: UseGameOptions) {
   const setRoundResults = useStore((state) => state.setRoundResults);
   const setPhase = useStore((state) => state.setPhase);
   const setCurrentTurn = useStore((state) => state.setCurrentTurn);
+  const claimInFlightRef = useRef(false);
 
   // Claim a trick - uses backend event name round:claim_trick
   const claimTrick = useCallback(async () => {
-    const response = await emit('round:claim_trick', { room_code: roomCode });
-    if (!response?.success) {
-      throw new Error(response?.error || 'Failed to claim trick');
+    if (claimInFlightRef.current) return;
+    claimInFlightRef.current = true;
+    try {
+      const response = await emit('round:claim_trick', { room_code: roomCode });
+      if (!response?.success) {
+        throw new Error(response?.error || 'Failed to claim trick');
+      }
+    } finally {
+      setTimeout(() => {
+        claimInFlightRef.current = false;
+      }, 600);
     }
   }, [emit, roomCode]);
 

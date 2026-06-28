@@ -104,6 +104,18 @@ test('T4: two rapid taps on claim-trick count as one trick claim', async ({ brow
     // Now in playing phase — P0 claims twice rapidly
     const page = driver.pages[0];
     await expect(page.getByTestId('playing-claim-trick')).toBeVisible({ timeout: 15_000 });
+    await page.evaluate(() => {
+      const testWindow = window as Window & {
+        socketManager?: {
+          getSocket(): { onAnyOutgoing(listener: (event: string) => void): void } | null;
+        };
+        claimTrickEmitCount?: number;
+      };
+      testWindow.claimTrickEmitCount = 0;
+      testWindow.socketManager?.getSocket()?.onAnyOutgoing((event) => {
+        if (event === 'round:claim_trick') testWindow.claimTrickEmitCount = (testWindow.claimTrickEmitCount ?? 0) + 1;
+      });
+    });
     await page.tap('[data-testid="playing-claim-trick"]');
     await page.tap('[data-testid="playing-claim-trick"]');
     // Wait briefly for state to settle (condition-based: check trick count stabilises)
@@ -115,6 +127,10 @@ test('T4: two rapid taps on claim-trick count as one trick claim', async ({ brow
       await driver.pages[0].getByTestId('playing-trick-count-0').innerText(),
       10,
     );
+    const emitCount = await page.evaluate(
+      () => (window as Window & { claimTrickEmitCount?: number }).claimTrickEmitCount ?? 0,
+    );
+    expect(emitCount, 'frontend must drop the second claim event').toBe(1);
     // Finding: if count > 1, the backend accepted a duplicate — SG-6 C3 not yet fixed.
     // Correct behavior: exactly 1 trick claimed despite 2 rapid taps.
     expect(count).toBe(1);
