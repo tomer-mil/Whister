@@ -235,7 +235,7 @@ export default function ScoreTablePage({
 
         <Button
           onClick={handleNewRound}
-          disabled={isStartingRound || isEndingGame}
+          disabled={!scoreData || isStartingRound || isEndingGame}
           loading={isStartingRound}
           fullWidth
           size="lg"
