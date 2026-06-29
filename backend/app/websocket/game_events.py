@@ -1187,6 +1187,18 @@ def register_sync_handlers(
 
             if phase in (GamePhase.BIDDING_TRUMP, GamePhase.FRISCH, GamePhase.BIDDING_CONTRACT, GamePhase.PLAYING):
                 round_data = await room_manager.get_room_round_state(room_code)
+
+                # The round-level `phase` field is updated more frequently than the
+                # room-level `status` field (e.g. bidding_contract → playing happens
+                # only in room:{room_code}:round, not in room:{room_code}).  Override
+                # the room-level phase with the round-level phase when present so that
+                # sync:state always reports the authoritative current game phase.
+                round_phase_str = round_data.get("phase")
+                if round_phase_str:
+                    try:
+                        phase = GamePhase(round_phase_str)
+                    except ValueError:
+                        pass  # keep room-level phase if round phase is unrecognised
                 current_bidder = round_data.get("current_bidder_id")
 
                 if phase == GamePhase.BIDDING_TRUMP:
