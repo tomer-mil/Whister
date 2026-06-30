@@ -1,5 +1,5 @@
 """Security utilities for password hashing and JWT tokens."""
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from jose import jwt
@@ -33,7 +33,7 @@ def create_access_token(
             minutes=settings.jwt_access_token_expire_minutes
         )
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     expire = now + expires_delta
 
     to_encode: dict[str, Any] = {
@@ -63,7 +63,7 @@ def create_refresh_token(
     if expires_delta is None:
         expires_delta = timedelta(days=settings.jwt_refresh_token_expire_days)
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     expire = now + expires_delta
 
     to_encode = {

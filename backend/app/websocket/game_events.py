@@ -44,6 +44,15 @@ from app.websocket.schemas import (
 
 logger = logging.getLogger(__name__)
 
+# Translation map from RoundPhase string values to GamePhase values
+_ROUND_PHASE_TO_GAME_PHASE: dict[str, GamePhase] = {
+    RoundPhase.TRUMP_BIDDING.value: GamePhase.BIDDING_TRUMP,
+    RoundPhase.FRISCH.value: GamePhase.FRISCH,
+    RoundPhase.CONTRACT_BIDDING.value: GamePhase.BIDDING_CONTRACT,
+    RoundPhase.PLAYING.value: GamePhase.PLAYING,
+    RoundPhase.COMPLETE.value: GamePhase.ROUND_COMPLETE,
+}
+
 
 async def emit_error(
     sio: "socketio.AsyncServer",  # type: ignore
@@ -1194,11 +1203,8 @@ def register_sync_handlers(
                 # the room-level phase with the round-level phase when present so that
                 # sync:state always reports the authoritative current game phase.
                 round_phase_str = round_data.get("phase")
-                if round_phase_str:
-                    try:
-                        phase = GamePhase(round_phase_str)
-                    except ValueError:
-                        pass  # keep room-level phase if round phase is unrecognised
+                if round_phase_str and round_phase_str in _ROUND_PHASE_TO_GAME_PHASE:
+                    phase = _ROUND_PHASE_TO_GAME_PHASE[round_phase_str]
                 current_bidder = round_data.get("current_bidder_id")
 
                 if phase == GamePhase.BIDDING_TRUMP:
