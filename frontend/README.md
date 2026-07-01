@@ -139,7 +139,9 @@ Mobile-first approach with breakpoints:
 2. **Type Safety** - Enable strict mode, use Zod for validation
 3. **Performance** - Use React.memo, optimize imports with path aliases
 4. **Accessibility** - Use Radix UI primitives, test with screen readers
-5. **Testing** - Unit tests with vitest (to be configured)
+5. **Testing** - Playwright browser coverage lives in `../e2e/`. The historical Jest scaffold in
+   `__tests__/` is not configured or executed; porting it to Vitest is separate work. Production
+   TypeScript checks intentionally exclude that dormant directory.
 
 ## Troubleshooting
 
