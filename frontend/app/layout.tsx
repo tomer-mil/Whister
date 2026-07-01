@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { ServiceWorkerRegistration } from '@/components/shared/service-worker-registration';
 import './globals.css';
 
 export const viewport: Viewport = {
@@ -40,6 +41,7 @@ export default function RootLayout({
         />
       </head>
       <body suppressHydrationWarning>
+        <ServiceWorkerRegistration />
         <div id="root">
           {children}
         </div>

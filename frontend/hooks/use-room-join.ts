@@ -58,6 +58,17 @@ export function useRoomJoin(): UseRoomJoinReturn {
       });
       store.setCurrentRoomCode(roomCode);
       store.setRoomJoinStatus('joined');
+
+      // Persist phase + gameId from the join payload so callers can navigate
+      // without relying on the useSocketEvent('room:joined') subscription which
+      // may miss the event when the round-trip completes before the listener is
+      // attached (100 ms polling window in useSocketEvent).
+      if (result.game_id && result.phase) {
+        store.setGameState({
+          gameId: result.game_id,
+          status: result.phase as any,
+        });
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to join room';
       console.error('[useRoomJoin] Join failed:', errorMessage);

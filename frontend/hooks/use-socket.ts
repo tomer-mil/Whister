@@ -42,6 +42,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
   // Wait for auth hydration
   const isHydrated = useStore((state) => state.isHydrated);
   const accessToken = useStore((state) => state.accessToken);
+  const setSocketConnected = useStore((state) => state.setSocketConnected);
 
   // Initialize socket connection
   useEffect(() => {
@@ -67,8 +68,10 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
     socketManager.connect(accessToken).then((sock) => {
       setSocket(sock);
       setIsConnected(true);
+      setSocketConnected(true);
       console.log('[useSocket] Connected successfully');
     }).catch((error) => {
+      setSocketConnected(false);
       console.error('[useSocket] Failed to connect:', error);
     });
 
@@ -78,9 +81,11 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
       const handleConnect = () => {
         setIsConnected(true);
         setSocket(socketManager.getSocket());
+        setSocketConnected(true);
       };
       const handleDisconnect = () => {
         setIsConnected(false);
+        setSocketConnected(false);
       };
 
       currentSocket.on('connect', handleConnect);
@@ -93,7 +98,33 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
     }
 
     return undefined;
-  }, [autoConnect, isHydrated, accessToken]);
+  }, [autoConnect, isHydrated, accessToken, setSocketConnected]);
+
+  // A page restored from the browser back/forward cache does not rerun the
+  // connection effect above. Reconnect explicitly if its socket was dropped
+  // while the page was frozen.
+  useEffect(() => {
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted || socketManager.isConnected()) return;
+
+      const token = useStore.getState().accessToken;
+      if (!token) return;
+
+      socketManager.connect(token)
+        .then((connectedSocket) => {
+          setSocket(connectedSocket);
+          setIsConnected(true);
+          setSocketConnected(true);
+        })
+        .catch((error: unknown) => {
+          setSocketConnected(false);
+          console.warn('[useSocket] bfcache reconnect failed:', error);
+        });
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
+  }, [setSocketConnected]);
 
   // Type-safe event emission
   const emit = useCallback(
@@ -122,7 +153,8 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
     socketManager.disconnect();
     setSocket(null);
     setIsConnected(false);
-  }, []);
+    setSocketConnected(false);
+  }, [setSocketConnected]);
 
   return {
     socket,

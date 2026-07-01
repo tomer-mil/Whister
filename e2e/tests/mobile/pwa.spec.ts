@@ -77,6 +77,19 @@ test('P3: installed scope has an active service worker for offline relaunch', as
     await driver.pages[0].goto('/');
     const serviceWorker = await driver.pages[0].evaluate(async () => {
       if (!('serviceWorker' in navigator)) return { supported: false, controlled: false };
+      await navigator.serviceWorker.ready;
+      if (!navigator.serviceWorker.controller) {
+        await new Promise<void>((resolve, reject) => {
+          const timeout = window.setTimeout(
+            () => reject(new Error('service worker did not claim the page')),
+            10_000,
+          );
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            window.clearTimeout(timeout);
+            resolve();
+          }, { once: true });
+        });
+      }
       const registrations = await navigator.serviceWorker.getRegistrations();
       return {
         supported: true,
