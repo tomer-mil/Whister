@@ -74,6 +74,10 @@ export function JoinRoomForm() {
           maxLength={6}
           className="text-2xl font-bold tracking-[0.2em] uppercase"
           error={errors.roomCode?.message}
+          autoCorrect="off"
+          autoCapitalize="characters"
+          autoComplete="off"
+          spellCheck={false}
           {...register('roomCode')}
         />
 
