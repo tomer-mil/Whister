@@ -1,3 +1,5 @@
+import { extractErrorMessage } from './errors';
+
 interface TokenResponse {
   access_token: string;
   refresh_token: string;
@@ -40,15 +42,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { 'Content-Type': 'application/json', ...init?.headers },
   });
   if (!res.ok) {
-    const body = await res.text();
-    let message = `Request failed: ${res.status}`;
-    try {
-      const json = JSON.parse(body);
-      message = json.detail || json.message || json.error || message;
-    } catch {
-      // use default message
-    }
-    throw new Error(message);
+    throw new Error(extractErrorMessage(await res.text(), res.status));
   }
   return res.json() as Promise<T>;
 }
