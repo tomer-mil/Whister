@@ -6,6 +6,7 @@ from redis.asyncio import Redis  # type: ignore
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession  # type: ignore
 
+from app.config import get_settings
 from app.core.exceptions import (
     AuthenticationError,
     UserAlreadyExistsError,
@@ -94,7 +95,11 @@ class AuthService:
             tokens=TokenResponse(
                 access_token=access_token,
                 refresh_token=refresh_token,
-                expires_in=30 * 60,  # 30 minutes in seconds
+                # Must track the real token lifetime: the client uses this as the
+                # max-age of the auth cookie, and the proxy reads the Authorization
+                # header only from that cookie. Hardcoding 30 minutes killed the
+                # cookie -- and every REST call -- while the token was still valid.
+                expires_in=get_settings().jwt_access_token_expire_minutes * 60,
             ),
         )
 
@@ -159,7 +164,11 @@ class AuthService:
             tokens=TokenResponse(
                 access_token=access_token,
                 refresh_token=refresh_token,
-                expires_in=30 * 60,  # 30 minutes in seconds
+                # Must track the real token lifetime: the client uses this as the
+                # max-age of the auth cookie, and the proxy reads the Authorization
+                # header only from that cookie. Hardcoding 30 minutes killed the
+                # cookie -- and every REST call -- while the token was still valid.
+                expires_in=get_settings().jwt_access_token_expire_minutes * 60,
             ),
         )
 
@@ -225,7 +234,11 @@ class AuthService:
             return TokenResponse(
                 access_token=new_access_token,
                 refresh_token=new_refresh_token,
-                expires_in=30 * 60,  # 30 minutes in seconds
+                # Must track the real token lifetime: the client uses this as the
+                # max-age of the auth cookie, and the proxy reads the Authorization
+                # header only from that cookie. Hardcoding 30 minutes killed the
+                # cookie -- and every REST call -- while the token was still valid.
+                expires_in=get_settings().jwt_access_token_expire_minutes * 60,
             )
 
         except AuthenticationError:
