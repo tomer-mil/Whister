@@ -11,9 +11,11 @@ export interface TrumpBiddingPanelProps {
   roomCode: string;
   onBidTrump: (amount: number, suit: TrumpSuit) => Promise<void>;
   onPass: () => Promise<void>;
+  /** Rejection reason from the server, rendered on the controls. */
+  error?: string;
 }
 
-export function TrumpBiddingPanel({ roomCode: _roomCode, onBidTrump, onPass }: TrumpBiddingPanelProps) {
+export function TrumpBiddingPanel({ roomCode: _roomCode, onBidTrump, onPass, error }: TrumpBiddingPanelProps) {
   const trumpBids = useStore((state) => state.trumpBids);
   const highestTrumpBid = useStore((state) => state.highestTrumpBid);
   const minimumBid = useStore((state) => state.minimumBid);
@@ -87,6 +89,7 @@ export function TrumpBiddingPanel({ roomCode: _roomCode, onBidTrump, onPass }: T
           onBid={handleBid}
           onPass={handlePass}
           isLoading={isSubmitting}
+          error={error}
         />
       ) : hasUserPassed ? (
         <p className="text-center text-sm text-muted-foreground py-4 uppercase tracking-[0.1em]">

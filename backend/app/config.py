@@ -21,6 +21,17 @@ class Settings(BaseSettings):
     debug: bool = False
     environment: Literal["development", "staging", "production"] = "development"
 
+    # Logging
+    #
+    # These are deliberately separate from `debug`. Both used to key off it, with
+    # two bad consequences: engineio's wire log wrote live JWTs into the container
+    # log in plaintext, and SQLAlchemy's echo buried every real log line under
+    # ~11.5k lines/day of healthcheck SELECTs. Turn them on individually when you
+    # actually need them.
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    sql_echo: bool = False
+    socketio_debug: bool = False
+
     # Server
     host: str = "0.0.0.0"
     port: int = 8000

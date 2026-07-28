@@ -14,6 +14,7 @@ import { AdminControls } from '@/components/game/admin-controls';
 import { RoundSummaryModal } from '@/components/game/round-summary-modal';
 import { useBidding } from '@/hooks/use-bidding';
 import { useGame } from '@/hooks/use-game';
+import type { TrumpSuit } from '@/types/game';
 
 export default function GamePage({
   params,
@@ -125,6 +126,27 @@ export default function GamePage({
     });
   }, [players, contracts, playerTricks]);
 
+  // bidTrump/passRound throw on every legitimate server rejection ("not your
+  // turn", "bid too low"). Without these wrappers the throw was swallowed and
+  // the player saw absolutely nothing happen when they tapped Bid.
+  const handleTrumpBid = useCallback(async (amount: number, suit: TrumpSuit) => {
+    setError(null);
+    try {
+      await bidTrump(amount, suit);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to place bid');
+    }
+  }, [bidTrump]);
+
+  const handleTrumpPass = useCallback(async () => {
+    setError(null);
+    try {
+      await passRound();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to pass');
+    }
+  }, [passRound]);
+
   const handleContractBid = useCallback(async (amount: number) => {
     setError(null);
     try {
@@ -204,8 +226,9 @@ export default function GamePage({
         <section className="flex-1 px-4 py-4">
           <TrumpBiddingPanel
             roomCode={roomCode}
-            onBidTrump={bidTrump}
-            onPass={passRound}
+            onBidTrump={handleTrumpBid}
+            onPass={handleTrumpPass}
+            error={error ?? undefined}
           />
         </section>
       )}

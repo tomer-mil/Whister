@@ -12,6 +12,7 @@ from app.api.router import router
 from app.config import get_settings
 from app.core.database import db_manager
 from app.core.error_handlers import register_exception_handlers
+from app.core.logging_config import configure_logging
 from app.core.redis import redis_manager
 from app.middleware.logging import LoggingMiddleware
 from app.services.bidding_service import BiddingService
@@ -76,6 +77,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 def create_app() -> FastAPI:
     """Create and configure FastAPI application."""
     settings = get_settings()
+
+    # Before anything else: until this runs, every logger.info in the app is
+    # silently discarded by the unconfigured root logger.
+    configure_logging(settings.log_level)
 
     app = FastAPI(
         title=settings.app_name,
@@ -178,8 +183,10 @@ _redis_mgr = socketio.AsyncRedisManager(
 sio = socketio.AsyncServer(
     async_mode="asgi",
     cors_allowed_origins=settings.cors_origins,
-    logger=settings.debug,
-    engineio_logger=settings.debug,
+    # NOT settings.debug: engineio's wire log prints the auth handshake packet
+    # verbatim, which put live 12-hour JWTs into the container log in plaintext.
+    logger=settings.socketio_debug,
+    engineio_logger=settings.socketio_debug,
     ping_interval=25,
     ping_timeout=5,
     max_http_buffer_size=16384,

@@ -4,6 +4,23 @@ import type { AuthState, AuthActions } from '@/types/store';
 
 export interface AuthSlice extends AuthState, AuthActions {}
 
+/**
+ * Mirror the tokens into cookies.
+ *
+ * This is not optional bookkeeping: the API proxy at app/api/v1/[...path] builds
+ * its Authorization header *only* from the accessToken cookie, and middleware
+ * reads the same cookie to gate protected routes. Any code path that produces a
+ * new access token and skips this leaves the socket happily connected while
+ * every REST call 401s -- which is exactly what refreshAuth used to do.
+ */
+function persistAuthCookies(accessToken: string, refreshToken: string | undefined, expiresIn: number) {
+  if (typeof window === 'undefined') return;
+  document.cookie = `accessToken=${accessToken}; path=/; max-age=${expiresIn}`;
+  if (refreshToken) {
+    document.cookie = `refreshToken=${refreshToken}; path=/`;
+  }
+}
+
 const initialAuthState: AuthState = {
   user: null,
   accessToken: null,
@@ -48,12 +65,13 @@ export const createAuthSlice: any = (set: any, get: any) => ({
         localStorage.setItem('accessToken', response.tokens.access_token);
         localStorage.setItem('refreshToken', response.tokens.refresh_token);
         console.log('[Auth] login - stored tokens in localStorage');
-
-        // Also set cookies for middleware to read (middleware checks for accessToken cookie)
-        document.cookie = `accessToken=${response.tokens.access_token}; path=/; max-age=${response.tokens.expires_in}`;
-        document.cookie = `refreshToken=${response.tokens.refresh_token}; path=/`;
-        console.log('[Auth] login - set cookies');
       }
+
+      persistAuthCookies(
+        response.tokens.access_token,
+        response.tokens.refresh_token,
+        response.tokens.expires_in,
+      );
     } catch (error) {
       set({ isLoading: false });
       throw error;
@@ -92,11 +110,13 @@ export const createAuthSlice: any = (set: any, get: any) => ({
       if (typeof window !== 'undefined') {
         localStorage.setItem('accessToken', response.tokens.access_token);
         localStorage.setItem('refreshToken', response.tokens.refresh_token);
-
-        // Also set cookies for middleware to read
-        document.cookie = `accessToken=${response.tokens.access_token}; path=/; max-age=${response.tokens.expires_in}`;
-        document.cookie = `refreshToken=${response.tokens.refresh_token}; path=/`;
       }
+
+      persistAuthCookies(
+        response.tokens.access_token,
+        response.tokens.refresh_token,
+        response.tokens.expires_in,
+      );
     } catch (error) {
       set({ isLoading: false });
       throw error;
@@ -146,8 +166,14 @@ export const createAuthSlice: any = (set: any, get: any) => ({
         if (response.refresh_token) {
           localStorage.setItem('refreshToken', response.refresh_token);
         }
-        console.log('[Auth] Token refresh successful - updated both Zustand and localStorage');
       }
+
+      persistAuthCookies(
+        response.access_token,
+        response.refresh_token,
+        response.expires_in,
+      );
+      console.log('[Auth] Token refresh successful - updated Zustand, localStorage and cookies');
     } catch (error) {
       console.error('[Auth] Token refresh failed:', error);
       get().logout();

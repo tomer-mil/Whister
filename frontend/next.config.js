@@ -3,6 +3,10 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
 
+  // Requests arriving through a cloudflared quick tunnel carry the tunnel's
+  // Host header, which the dev server otherwise rejects as cross-origin.
+  allowedDevOrigins: ['*.trycloudflare.com'],
+
   // Experimental features
   experimental: {
     optimizePackageImports: ['@radix-ui/*'],
