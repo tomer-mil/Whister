@@ -42,7 +42,10 @@ class DatabaseManager:
             max_overflow=settings.database_max_overflow,
             pool_timeout=settings.database_pool_timeout,
             pool_recycle=1800,
-            echo=settings.debug,
+            # NOT settings.debug: the 30s healthcheck alone produced ~11.5k
+            # lines/day of BEGIN/SELECT 1/COMMIT, and echo prints bound
+            # parameters including password-lookup queries.
+            echo=settings.sql_echo,
         )
 
         self._session_factory = async_sessionmaker(

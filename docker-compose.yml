@@ -50,6 +50,11 @@ services:
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       DEBUG: ${DEBUG:-false}
       ENVIRONMENT: ${ENVIRONMENT:-development}
+      # Deliberately independent of DEBUG -- SOCKETIO_DEBUG logs auth tokens and
+      # SQL_ECHO buries the log under healthcheck queries.
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      SQL_ECHO: ${SQL_ECHO:-false}
+      SOCKETIO_DEBUG: ${SOCKETIO_DEBUG:-false}
     ports:
       - "8001:8000"
     volumes:
