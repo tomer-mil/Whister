@@ -130,6 +130,15 @@ async def emit_your_turn(
     if socket_id:
         payload = YourTurnPayload(phase=phase, **kwargs)
         await sio.emit(ServerEvents.YOUR_TURN, payload.to_dict(), to=socket_id)
+    else:
+        # Dropping a your_turn stalls the whole table with no visible error, so
+        # it must never be silent -- this is the one log line that explains an
+        # "everyone is just waiting" report.
+        logger.warning(
+            "No socket for user %s; dropping bid:your_turn (phase=%s)",
+            user_id,
+            phase,
+        )
 
 
 def register_bidding_handlers(  # noqa: C901
@@ -807,6 +816,19 @@ def register_playing_handlers(
                 )
                 return
 
+            # Claiming mutates shared round state, so verify membership the same
+            # way the bid handlers do -- otherwise anyone who knows a room code
+            # can inflate the trick count in a stranger's game.
+            players = await room_manager._get_room_players(room_code)
+            if not any(p.user_id == ctx.user_id for p in players):
+                await emit_error(
+                    sio,
+                    sid,
+                    WSErrorCode.NOT_IN_ROOM,
+                    "Not in room",
+                )
+                return
+
             # Get round state
             round_data = await room_manager.get_room_round_state(room_code)
             total_tricks = int(round_data.get("total_tricks_played", 0))
@@ -842,22 +864,41 @@ def register_playing_handlers(
                 )
                 return {"success": True}
 
-            # Get player's current tricks
+            # HINCRBY, not read-modify-write. The inflight lock above is keyed
+            # per user, so it does nothing for two *different* players claiming
+            # in the same tick: both would read total_tricks_played=5 and both
+            # write 6. The count then never reaches 13, round:complete never
+            # fires, and the table sits frozen with no error anywhere.
             tricks_key = f"room:{room_code}:tricks"
-            current_tricks = await room_manager.redis.hget(tricks_key, ctx.user_id)
-            current_tricks = int(current_tricks) if current_tricks else 0
-
-            # Increment trick count
-            new_tricks = current_tricks + 1
-            await room_manager.redis.hset(tricks_key, ctx.user_id, str(new_tricks))
-
-            # Update total tricks
-            new_total = total_tricks + 1
-            await room_manager.redis.hset(
+            new_tricks = await room_manager.redis.hincrby(tricks_key, ctx.user_id, 1)
+            new_total = await room_manager.redis.hincrby(
                 f"room:{room_code}:round",
                 "total_tricks_played",
-                str(new_total),
+                1,
             )
+
+            # The >= 13 guard above is a read, so a simultaneous claim can still
+            # carry us past 13. Give the trick back rather than persisting a
+            # round that can never complete.
+            if new_total > 13:
+                await room_manager.redis.hincrby(tricks_key, ctx.user_id, -1)
+                await room_manager.redis.hincrby(
+                    f"room:{room_code}:round",
+                    "total_tricks_played",
+                    -1,
+                )
+                logger.warning(
+                    "Concurrent claim overshot 13 tricks in room %s (user %s); rolled back",
+                    room_code,
+                    ctx.user_id,
+                )
+                await emit_error(
+                    sio,
+                    sid,
+                    WSErrorCode.GAME_ALREADY_STARTED,
+                    "All 13 tricks have been played",
+                )
+                return
 
             # Get player's contract
             contracts = await bidding_service.get_contracts(room_code)

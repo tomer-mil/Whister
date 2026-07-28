@@ -74,6 +74,15 @@ class RoomManager:
     ROOM_TTL = timedelta(hours=24)
     RECONNECT_GRACE_PERIOD = timedelta(seconds=60)
 
+    # Connection keys are written once on join and never touched again, so this
+    # TTL is a floor on how long a player can stay connected -- not a reaper for
+    # stale entries. It was 10 minutes, which meant that ten minutes into any
+    # session ws:user:{id} vanished, emit_your_turn silently found no socket, and
+    # the table waited forever on a player who was never told it was their turn.
+    # Real cleanup is _clear_connection on disconnect; a reconnect overwrites
+    # ws:user:{id} anyway. Tie it to the room so a connection can't outlive one.
+    CONNECTION_TTL = ROOM_TTL
+
     def __init__(
         self,
         redis: Redis,  # type: ignore
@@ -452,10 +461,11 @@ class RoomManager:
                 "connected_at": datetime.utcnow().isoformat(),
             },
         )
-        pipe.expire(f"ws:socket:{socket_id}", 600)  # 10 minutes
+        ttl = int(self.CONNECTION_TTL.total_seconds())
+        pipe.expire(f"ws:socket:{socket_id}", ttl)
 
         pipe.set(f"ws:user:{user_id}", socket_id)
-        pipe.expire(f"ws:user:{user_id}", 600)
+        pipe.expire(f"ws:user:{user_id}", ttl)
 
         pipe.sadd(f"ws:room:{room_code}", socket_id)
 
