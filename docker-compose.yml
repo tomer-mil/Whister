@@ -46,6 +46,8 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-whist}:${POSTGRES_PASSWORD:-whistpass123}@postgres:5432/${POSTGRES_DB:-whist_db}
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-super-secret-key-change-in-production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3001}
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       DEBUG: ${DEBUG:-false}
       ENVIRONMENT: ${ENVIRONMENT:-development}
     ports:
@@ -60,6 +62,23 @@ services:
     networks:
       - whist_network
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Single-origin edge so the app can be shared behind one public URL.
+  # Only needed for sharing; plain local dev can talk to 3001/8001 directly.
+  edge:
+    image: nginx:1.27-alpine
+    container_name: whist_edge
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./infra/nginx/whister.conf:/etc/nginx/conf.d/default.conf:ro
+    extra_hosts:
+      # Lets nginx reach the Next.js dev server running on the host.
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - backend
+    networks:
+      - whist_network
 
 volumes:
   postgres_data:
